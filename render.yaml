@@ -1,20 +1,13 @@
-# Render Project Blueprint
-version: "1"
-projects:
-- name: BidWars
-  environments:
-  - name: Production
-    services:
-    - type: web
-      name: bidwars-backend
-      runtime: node
-      plan: free
-      region: oregon
-      rootDir: backend
-      buildCommand: npm install
-      startCommand: npm start
-      autoDeployTrigger: true
-      envVars:
+services:
+  - type: web
+    name: bidwars-backend
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    envVars:
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
       - key: GEMINI_API_KEY
