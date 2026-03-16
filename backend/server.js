@@ -12,6 +12,8 @@ const app = express()
 
 // CORS — allow Render, Vercel, gaurangjadoun.in, and localhost (no port in prod)
 const allowedOrigins = [
+  "https://frontend-bidwars.onrender.com",
+  "https://backend-bidwars.onrender.com",
   "https://bidwars-auction-platform.onrender.com",
   "https://bidwars-auction-platform.vercel.app",
   "https://gaurangjadoun.in",
