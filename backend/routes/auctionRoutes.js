@@ -50,7 +50,7 @@ router.get("/admin/users", verifyToken, verifyAdmin, async (req, res) => {
 })
 
 // Admin Only: Verify KYC
-router.post("/admin/verifyKYC", protect, isAdmin, async (req, res) => {
+router.post("/admin/verifyKYC", verifyToken, verifyAdmin, async (req, res) => {
   const { uid, status } = req.body
   try {
     await db.collection("users").doc(uid).update({
@@ -65,7 +65,7 @@ router.post("/admin/verifyKYC", protect, isAdmin, async (req, res) => {
 })
 
 // Protected: Generate AI Description
-router.post("/generateDescription", protect, async (req, res) => {
+router.post("/generateDescription", verifyToken, async (req, res) => {
   const { itemName, features } = req.body
   try {
     const description = await generateListingDescription(itemName, features)
@@ -76,7 +76,7 @@ router.post("/generateDescription", protect, async (req, res) => {
 })
 
 // Admin Only: Create Auction
-router.post("/auctions", protect, isAdmin, async (req, res) => {
+router.post("/auctions", verifyToken, verifyAdmin, async (req, res) => {
   const { title, description, category, minBid, imageUrl, startTime, endTime } = req.body
   try {
     const auction = await db.collection("auctions").add({
@@ -104,7 +104,7 @@ router.post("/auctions", protect, isAdmin, async (req, res) => {
 })
 
 // User: Propose Auction
-router.post("/auctions/propose", protect, async (req, res) => {
+router.post("/auctions/propose", verifyToken, async (req, res) => {
   const { title, description, category, minBid, imageUrl, endTime } = req.body
   if (!req.user.isVerified) {
     return res.status(403).json({ message: "KYC Verification required to list assets." })
@@ -130,7 +130,7 @@ router.post("/auctions/propose", protect, async (req, res) => {
 })
 
 // Admin Only: Update User Credits
-router.post("/admin/updateCredits", protect, isAdmin, async (req, res) => {
+router.post("/admin/updateCredits", verifyToken, verifyAdmin, async (req, res) => {
   const { userId, credits } = req.body
   try {
     const userDoc = await db.collection("users").doc(userId).get()
@@ -144,7 +144,7 @@ router.post("/admin/updateCredits", protect, isAdmin, async (req, res) => {
 })
 
 // Protected: Get Wallet History
-router.get("/wallet/history", protect, async (req, res) => {
+router.get("/wallet/history", verifyToken, async (req, res) => {
   try {
     const history = await ledgerService.getHistory(req.user.uid)
     res.json(history)
@@ -154,7 +154,7 @@ router.get("/wallet/history", protect, async (req, res) => {
 })
 
 // Protected: Wallet Topup
-router.post("/wallet/topup", protect, async (req, res) => {
+router.post("/wallet/topup", verifyToken, async (req, res) => {
   const { amount } = req.body
   try {
     const magnitude = parseFloat(amount)
@@ -167,7 +167,7 @@ router.post("/wallet/topup", protect, async (req, res) => {
 })
 
 // Admin Only: Close Auction
-router.post("/admin/closeAuction", protect, isAdmin, async (req, res) => {
+router.post("/admin/closeAuction", verifyToken, verifyAdmin, async (req, res) => {
   const { auctionId } = req.body
   try {
     const auctionRef = db.collection("auctions").doc(auctionId)
@@ -212,7 +212,7 @@ router.post("/admin/closeAuction", protect, isAdmin, async (req, res) => {
 })
 
 // Protected: Buy It Now
-router.post("/auctions/buy-it-now/:id", protect, async (req, res) => {
+router.post("/auctions/buy-it-now/:id", verifyToken, async (req, res) => {
   const auctionId = req.params.id
   const userId = req.user.uid
   try {
@@ -275,7 +275,7 @@ router.put("/auctions/:id", verifyToken, verifyAdmin, async (req, res) => {
 })
 
 // Admin Only: Delete Auction
-router.delete("/auctions/:id", protect, isAdmin, async (req, res) => {
+router.delete("/auctions/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     await db.collection("auctions").doc(req.params.id).delete()
     const io = req.app.get("io")
@@ -287,7 +287,7 @@ router.delete("/auctions/:id", protect, isAdmin, async (req, res) => {
 })
 
 // Admin Only: Get Flagged Auctions
-router.get("/admin/flagged", protect, isAdmin, async (req, res) => {
+router.get("/admin/flagged", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const snapshot = await db.collection("auctions").where("flagged", "==", true).get()
     const flagged = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -298,7 +298,7 @@ router.get("/admin/flagged", protect, isAdmin, async (req, res) => {
 })
 
 // Protected: Create Dispute
-router.post("/disputes", protect, async (req, res) => {
+router.post("/disputes", verifyToken, async (req, res) => {
   const { auctionId, reason } = req.body
   try {
     const dispute = {
@@ -316,7 +316,7 @@ router.post("/disputes", protect, async (req, res) => {
 })
 
 // Admin Only: Get All Disputes — FIX: removed .orderBy to avoid missing index
-router.get("/admin/disputes", protect, isAdmin, async (req, res) => {
+router.get("/admin/disputes", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const snapshot = await db.collection("disputes").get()  // no orderBy — sort in memory
     const disputes = snapshot.docs
@@ -330,7 +330,7 @@ router.get("/admin/disputes", protect, isAdmin, async (req, res) => {
 })
 
 // Admin Only: Resolve Dispute
-router.post("/admin/disputes/:id/resolve", protect, isAdmin, async (req, res) => {
+router.post("/admin/disputes/:id/resolve", verifyToken, verifyAdmin, async (req, res) => {
   const { status, resolution } = req.body
   try {
     const disputeRef = db.collection("disputes").doc(req.params.id)
@@ -363,7 +363,7 @@ router.post("/admin/disputes/:id/resolve", protect, isAdmin, async (req, res) =>
 })
 
 // Admin Only: Get Pending Auctions — FIX: removed .orderBy to avoid missing index
-router.get("/admin/pendingAuctions", protect, isAdmin, async (req, res) => {
+router.get("/admin/pendingAuctions", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const snapshot = await db.collection("auctions")
       .where("status", "==", "pending_approval")
@@ -379,7 +379,7 @@ router.get("/admin/pendingAuctions", protect, isAdmin, async (req, res) => {
 })
 
 // Admin Only: Approve/Reject Auction
-router.post("/admin/reviewAuction", protect, isAdmin, async (req, res) => {
+router.post("/admin/reviewAuction", verifyToken, verifyAdmin, async (req, res) => {
   const { auctionId, approved } = req.body
   try {
     const status = approved ? "active" : "rejected"
@@ -395,7 +395,7 @@ router.post("/admin/reviewAuction", protect, isAdmin, async (req, res) => {
 })
 
 // Admin Only: Get Analytics
-router.get("/admin/analytics", protect, isAdmin, async (req, res) => {
+router.get("/admin/analytics", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const stats = await reportService.getPlatformSummary()
     res.json(stats)
@@ -406,7 +406,7 @@ router.get("/admin/analytics", protect, isAdmin, async (req, res) => {
 })
 
 // Protected: Confirm Receipt (Release Escrow)
-router.post("/auctions/:id/confirm-receipt", protect, async (req, res) => {
+router.post("/auctions/:id/confirm-receipt", verifyToken, async (req, res) => {
   const auctionId = req.params.id
   const userId = req.user.uid
   try {
@@ -454,7 +454,7 @@ router.post("/auctions/:id/confirm-receipt", protect, async (req, res) => {
 })
 
 // Protected: Toggle Watchlist
-router.post("/watchlist/toggle/:id", protect, async (req, res) => {
+router.post("/watchlist/toggle/:id", verifyToken, async (req, res) => {
   const auctionId = req.params.id
   const userId = req.user.uid
   try {
@@ -473,7 +473,7 @@ router.post("/watchlist/toggle/:id", protect, async (req, res) => {
 })
 
 // Protected: Get Watchlist
-router.get("/watchlist", protect, async (req, res) => {
+router.get("/watchlist", verifyToken, async (req, res) => {
   try {
     const snapshot = await db.collection("watchlist")
       .where("userId", "==", req.user.uid)
@@ -506,7 +506,7 @@ router.get("/auctions/:id/bids", async (req, res) => {
 })
 
 // Protected: Download Certificate
-router.get("/auctions/:id/certificate", protect, async (req, res) => {
+router.get("/auctions/:id/certificate", verifyToken, async (req, res) => {
   try {
     const auctionDoc = await db.collection("auctions").doc(req.params.id).get()
     if (!auctionDoc.exists) return res.status(404).json({ error: "Auction not found" })
@@ -523,7 +523,7 @@ router.get("/auctions/:id/certificate", protect, async (req, res) => {
 })
 
 // Protected: Get Notifications — FIX: removed .orderBy to avoid missing index
-router.get("/notifications", protect, async (req, res) => {
+router.get("/notifications", verifyToken, async (req, res) => {
   try {
     const snapshot = await db.collection("notifications")
       .where("userId", "==", req.user.uid)
@@ -550,7 +550,7 @@ router.post("/notifications/:id/read", protect, async (req, res) => {
 })
 
 // Admin Only: Get User Audit — FIX: removed .orderBy to avoid missing index
-router.get("/admin/users/:uid/audit", protect, isAdmin, async (req, res) => {
+router.get("/admin/users/:uid/audit", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const snapshot = await db.collection("transactions")
       .where("userId", "==", req.params.uid)
