@@ -7,7 +7,7 @@ services:
     plan: free
     region: oregon
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: npm start
     rootDir: backend
     autoDeployTrigger: true
     envVars:
