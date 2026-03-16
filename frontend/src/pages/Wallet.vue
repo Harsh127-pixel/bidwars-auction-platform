@@ -1,166 +1,256 @@
 <template>
-  <div style="background: var(--bg-page); min-height: 100vh; padding: 32px 16px;">
-    <div style="max-width: 1280px; margin: 0 auto;">
-
-      <div class="animate-in" style="margin-bottom: 32px;">
-        <h1 class="font-display" style="font-size: 36px; color: var(--text-primary); margin: 0 0 8px; font-weight: 400;">Wallet</h1>
-        <p style="color: var(--text-secondary); font-size: 15px; margin: 0;">Manage your funds and view transaction history</p>
-      </div>
-
-      <!-- Balance Cards -->
-      <div class="animate-in animate-in-delay-1" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-        <div style="background: var(--accent); border-radius: 14px; padding: 28px; color: white;">
-          <div style="font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">Available Balance</div>
-          <div class="bid-amount" style="font-size: 40px; color: white;">₹{{ (authStore.user?.credits || 0).toLocaleString() }}</div>
-          <div style="font-size: 13px; opacity: 0.6; margin-top: 8px;">Ready to bid</div>
-        </div>
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">In Escrow</div>
-          <div class="bid-amount" style="font-size: 40px; color: var(--text-primary);">₹{{ (authStore.user?.heldCredits || 0).toLocaleString() }}</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Reserved for bids</div>
-        </div>
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">Total Portfolio</div>
-          <div class="bid-amount" style="font-size: 40px; color: var(--text-primary);">₹{{ ((authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0)).toLocaleString() }}</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Combined value</div>
-        </div>
-      </div>
-
-      <div class="d-flex flex-wrap" style="gap: 24px;">
-        <!-- Add Funds Card -->
-        <div class="animate-in animate-in-delay-2" style="flex: 0 0 380px; min-width: 280px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color);">
-              <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0; font-weight: 400;">Add Funds</h2>
-            </div>
-            <div style="padding: 24px;">
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px;">
-                <button
-                  v-for="amount in [5000, 25000, 100000, 500000]"
-                  :key="amount"
-                  @click="topupAmount = amount"
-                  :style="{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: topupAmount === amount ? 'none' : '1px solid var(--border-color)',
-                    background: topupAmount === amount ? 'var(--accent)' : 'var(--bg-elevated)',
-                    color: topupAmount === amount ? 'white' : 'var(--text-primary)',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    fontFamily: 'DM Sans, sans-serif'
-                  }"
-                >₹{{ amount >= 1000 ? (amount/1000)+'K' : amount }}</button>
+  <v-container class="py-12 px-6 animate-fade" max-width="1280">
+    <!-- Treasury Hero Intelligence -->
+    <v-row class="mb-10">
+      <v-col cols="12" lg="8">
+        <v-card 
+          elevation="24" 
+          class="rounded-2xl overflow-hidden border-subtle relative bg-primary text-white h-100"
+          style="min-height: 280px;"
+        >
+          <div class="position-absolute inset-0 opacity-10 bg-gradient-to-br from-white to-transparent z-0"></div>
+          
+          <v-row class="pa-10 relative z-10" align="center">
+            <v-col cols="12" md="7">
+              <div class="d-flex align-center gap-3 mb-6">
+                <v-chip color="white" size="small" variant="flat" class="text-primary font-weight-black text-[10px] tracking-[0.2em] px-3">
+                  INSTITUTIONAL TREASURY
+                </v-chip>
+                <v-chip v-if="authStore.user?.isVerified" color="warning" size="small" variant="flat" class="font-weight-black text-[10px] tracking-[0.2em]">
+                   SECURE
+                </v-chip>
               </div>
-
-              <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px;">Or enter custom amount</label>
-                <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 0 14px;">
-                  <span style="color: var(--text-muted); font-weight: 600; font-size: 16px;">₹</span>
-                  <input
-                    v-model.number="topupAmount"
-                    type="number"
-                    placeholder="0"
-                    style="flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 16px; outline: none; padding: 12px 0; font-family: 'DM Serif Display', serif; font-variant-numeric: tabular-nums;"
-                  />
-                </div>
+              <h1 class="text-h3 font-weight-black tracking-tighter italic ma-0 leading-tight">
+                Current <span class="not-italic opacity-70">Liquidity</span>
+              </h1>
+              <div class="d-flex align-end gap-3 mt-4">
+                <span class="text-h2 font-weight-black tracking-tighter italic">₹{{ (authStore.user?.credits || 0).toLocaleString() }}</span>
+                <span class="text-h6 font-weight-bold opacity-60 mb-2 italic">INR Liquid</span>
               </div>
-
-              <div style="background: var(--bg-elevated); border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-                  <span>Amount</span>
-                  <span style="color: var(--text-primary); font-weight: 500;">₹{{ (topupAmount || 0).toLocaleString() }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-                  <span>Processing fee</span>
-                  <span style="color: var(--success); font-weight: 600;">Free</span>
-                </div>
-                <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--text-primary);">
-                  <span>You receive</span>
-                  <span style="color: var(--accent);">₹{{ (topupAmount || 0).toLocaleString() }}</span>
-                </div>
-              </div>
-
-              <button
-                @click="simulateTopup"
-                :disabled="!topupAmount || topupAmount <= 0 || topupLoading"
-                style="width: 100%; background: var(--accent); color: white; border: none; padding: 13px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;"
-                :style="(!topupAmount || topupAmount <= 0) ? 'opacity: 0.4; cursor: not-allowed;' : ''"
-              >
-                <v-progress-circular v-if="topupLoading" size="16" width="2" indeterminate color="white"></v-progress-circular>
-                {{ topupLoading ? 'Processing...' : 'Add Funds' }}
-              </button>
-
-              <p style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <v-icon size="12">mdi-shield-check</v-icon>
-                Simulated payments — safe to test
+              <p class="text-body-2 font-weight-medium opacity-70 mt-4 max-w-sm">
+                Total available capital for spot acquisitions and floor operations. Protected by BWC Escrow protocols.
               </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Transaction History -->
-        <div class="animate-in animate-in-delay-3" style="flex: 1; min-width: 300px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-              <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0; font-weight: 400;">Transaction History</h2>
-              <button @click="fetchHistory" style="background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
-                <v-icon size="14">mdi-refresh</v-icon>
-                Refresh
-              </button>
-            </div>
-
-            <div v-if="loading" style="padding: 48px; text-align: center;">
-              <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
-              <p style="color: var(--text-muted); margin-top: 12px; font-size: 14px;">Loading transactions...</p>
-            </div>
-
-            <div v-else-if="history.length === 0" style="padding: 64px 24px; text-align: center;">
-              <div style="width: 56px; height: 56px; background: var(--bg-subtle); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                <v-icon size="26" style="color: var(--text-muted);">mdi-receipt-text-outline</v-icon>
-              </div>
-              <p style="color: var(--text-muted); font-size: 14px; margin: 0;">No transactions yet. Add funds to get started.</p>
-            </div>
-
-            <div v-else>
-              <div
-                v-for="tx in history"
-                :key="tx.id"
-                style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; transition: background 0.15s;"
-                @mouseover="$event.currentTarget.style.background = 'var(--bg-subtle)'"
-                @mouseleave="$event.currentTarget.style.background = 'transparent'"
-              >
-                <div :style="{
-                  width: '40px', height: '40px',
-                  background: tx.amount > 0 ? 'var(--success-soft)' : 'var(--accent-soft)',
-                  borderRadius: '10px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0
-                }">
-                  <v-icon size="18" :style="{ color: tx.amount > 0 ? 'var(--success)' : 'var(--accent)' }">
-                    {{ tx.amount > 0 ? 'mdi-plus' : 'mdi-minus' }}
-                  </v-icon>
-                </div>
-
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-weight: 600; color: var(--text-primary); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ formatType(tx.type) }}</div>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ formatDate(tx.createdAt) }}</div>
-                </div>
-
-                <div style="text-align: right; flex-shrink: 0;">
-                  <div :style="{ fontFamily: 'DM Serif Display, serif', fontSize: '16px', fontVariantNumeric: 'tabular-nums', color: tx.amount > 0 ? 'var(--success)' : 'var(--accent)', fontWeight: 400 }">
-                    {{ tx.amount > 0 ? '+' : '' }}₹{{ Math.abs(tx.amount).toLocaleString() }}
+            </v-col>
+            <v-col cols="12" md="5" class="d-flex justify-center justify-md-end">
+              <div class="text-right">
+                <p class="text-overline font-weight-black opacity-60 ma-0 tracking-widest">ASSET ALLOCATION</p>
+                <div class="mt-4 space-y-4">
+                  <div class="d-flex justify-end align-center gap-4">
+                    <div class="text-right">
+                      <p class="text-caption font-weight-black mb-0 opacity-70">In Escrow</p>
+                      <p class="text-h6 font-weight-black italic ma-0">₹{{ (authStore.user?.heldCredits || 0).toLocaleString() }}</p>
+                    </div>
+                    <v-avatar color="white" variant="tonal" size="40" rounded="lg">
+                      <v-icon icon="mdi-lock-outline" size="20"></v-icon>
+                    </v-avatar>
                   </div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Bal: ₹{{ tx.newBalance.toLocaleString() }}</div>
+                  <div class="d-flex justify-end align-center gap-4">
+                    <div class="text-right">
+                      <p class="text-caption font-weight-black mb-0 opacity-70">Total Wealth</p>
+                      <p class="text-h6 font-weight-black italic ma-0">₹{{ totalWealth.toLocaleString() }}</p>
+                    </div>
+                    <v-avatar color="white" variant="tonal" size="40" rounded="lg">
+                      <v-icon icon="mdi-bank-outline" size="20"></v-icon>
+                    </v-avatar>
+                  </div>
                 </div>
               </div>
+            </v-col>
+          </v-row>
+        </v-card>
+      </v-col>
+
+      <!-- Tier Privileges -->
+      <v-col cols="12" lg="4">
+        <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm h-100 flex-column d-flex overflow-hidden relative">
+          <div class="position-absolute rotate-12 -right-10 -top-10 opacity-5">
+             <v-icon icon="mdi-crown" size="200" color="primary"></v-icon>
+          </div>
+          <div class="relative z-10">
+            <p class="text-overline font-weight-black text-muted-custom tracking-widest mb-6">CURATOR CLASS STATUS</p>
+            <div class="d-flex align-center gap-4 mb-8">
+              <v-avatar color="primary" size="64" variant="tonal" rounded="xl">
+                <v-icon :icon="tierIcon" size="32"></v-icon>
+              </v-avatar>
+              <div>
+                <h3 class="text-h4 font-weight-black italic ma-0">{{ authStore.user?.membershipTier || 'Bronze' }}</h3>
+                <p class="text-caption font-weight-bold text-primary uppercase tracking-widest">Institutional Access</p>
+              </div>
+            </div>
+            
+            <v-divider class="mb-6"></v-divider>
+            
+            <div class="space-y-4">
+              <div class="d-flex justify-space-between">
+                <span class="text-caption font-weight-black text-muted-custom uppercase">Platform Fee</span>
+                <span class="text-caption font-weight-black text-primary">{{ commissionRate }}%</span>
+              </div>
+              <div class="d-flex justify-space-between">
+                <span class="text-caption font-weight-black text-muted-custom uppercase">Treasury Limit</span>
+                <span class="text-caption font-weight-black text-primary">UNLIMITED</span>
+              </div>
+              <div class="d-flex justify-space-between">
+                <span class="text-caption font-weight-black text-muted-custom uppercase">Settlement Speed</span>
+                <span class="text-caption font-weight-black text-primary">INSTANT</span>
+              </div>
+            </div>
+
+            <v-btn block variant="tonal" color="primary" class="rounded-xl mt-8 font-weight-black" height="48">
+              UPGRADE STATUS
+            </v-btn>
+          </div>
+        </v-card>
+      </v-col>
+    </v-row>
+
+    <v-row>
+      <!-- Treasury Operations -->
+      <v-col cols="12" lg="4">
+        <div class="space-y-8">
+          <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm relative overflow-hidden">
+            <div class="d-flex align-center gap-4 mb-8">
+              <v-avatar color="success" variant="tonal" rounded="lg" size="48">
+                <v-icon icon="mdi-bank-transfer-in" size="24"></v-icon>
+              </v-avatar>
+              <div>
+                <h3 class="text-h5 font-weight-black italic tracking-tight">Add <span class="text-success not-italic">Capital</span></h3>
+                <p class="text-[10px] font-weight-bold text-muted-custom uppercase tracking-widest leading-none mt-1">Instant funding via secure gateway</p>
+              </div>
+            </div>
+
+            <v-row class="mb-6">
+              <v-col cols="6" v-for="amount in [25000, 100000, 500000, 1000000]" :key="amount" class="pa-1">
+                <v-btn 
+                  block 
+                  variant="tonal" 
+                  :color="topupAmount === amount ? 'primary' : 'grey'"
+                  class="rounded-xl font-weight-black border"
+                  :class="{'border-primary': topupAmount === amount}"
+                  @click="topupAmount = amount"
+                >
+                  ₹{{ amount >= 1000000 ? (amount/1000000)+'M' : (amount/1000)+'K' }}
+                </v-btn>
+              </v-col>
+            </v-row>
+
+            <v-text-field
+              v-model.number="topupAmount"
+              prefix="₹"
+              label="Custom Amount"
+              variant="outlined"
+              class="rounded-xl mb-6"
+              hide-details
+            ></v-text-field>
+
+            <div class="bg-grey-lighten-5 rounded-xl pa-6 mb-6 border border-subtle">
+              <div class="d-flex justify-space-between mb-4">
+                <span class="text-caption font-weight-black text-muted-custom uppercase">Processing Fee</span>
+                <span class="text-caption font-weight-black text-success">0 (FREE)</span>
+              </div>
+              <div class="d-flex justify-space-between pt-4 border-t border-subtle">
+                <span class="text-caption font-weight-black text-primary uppercase">Effective Top-up</span>
+                <span class="text-h6 font-weight-black italic">₹{{ (topupAmount || 0).toLocaleString() }}</span>
+              </div>
+            </div>
+
+            <v-btn 
+              block 
+              color="primary" 
+              class="rounded-pill" 
+              height="56" 
+              @click="simulateTopup"
+              :loading="topupLoading"
+            >
+              FINALIZE DEPOSIT
+            </v-btn>
+          </v-card>
+
+          <!-- Security Matrix -->
+          <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm">
+            <p class="text-overline font-weight-black text-primary tracking-[0.2em] mb-6 uppercase">Treasury Security</p>
+            <div class="space-y-4">
+              <div class="d-flex align-center gap-4 pa-4 bg-grey-lighten-5 rounded-xl">
+                 <v-icon icon="mdi-shield-check" color="success"></v-icon>
+                 <div>
+                   <p class="text-caption font-weight-black ma-0">Escrow Safeguard</p>
+                   <p class="text-[10px] font-weight-bold text-muted-custom uppercase">Active for all bids</p>
+                 </div>
+              </div>
+              <div class="d-flex align-center gap-4 pa-4 bg-grey-lighten-5 rounded-xl">
+                 <v-icon icon="mdi-sync" color="primary"></v-icon>
+                 <div>
+                   <p class="text-caption font-weight-black ma-0">Forensic Sync</p>
+                   <p class="text-[10px] font-weight-bold text-muted-custom uppercase">Real-time ledger audit</p>
+                 </div>
+              </div>
+            </div>
+          </v-card>
+        </div>
+      </v-col>
+
+      <!-- Forensic Audit Trail -->
+      <v-col cols="12" lg="8">
+        <v-card variant="outlined" class="rounded-2xl bg-surface border-subtle shadow-sm overflow-hidden h-100 flex-column d-flex text-left">
+          <div class="pa-8 d-flex align-center justify-space-between bg-grey-lighten-5 border-b border-subtle">
+            <div>
+              <h3 class="text-h5 font-weight-black italic ma-0 tracking-tighter">Forensic Audit <span class="text-primary not-italic">Trail</span></h3>
+              <p class="text-[10px] font-weight-bold text-muted-custom uppercase tracking-widest mt-1">Cryptographic record of all wealth movements</p>
+            </div>
+            <v-btn variant="tonal" rounded="pill" color="primary" icon="mdi-refresh" @click="fetchHistory" :loading="loading"></v-btn>
+          </div>
+
+          <div class="flex-grow-1 overflow-y-auto" style="max-height: 800px;">
+            <div v-if="loading" class="pa-12 text-center">
+              <v-progress-circular indeterminate color="primary"></v-progress-circular>
+            </div>
+            <div v-else-if="history.length === 0" class="pa-20 text-center text-muted-custom">
+               <v-icon icon="mdi-receipt-text-outline" size="64" class="mb-4 opacity-20"></v-icon>
+               <p class="text-h6 font-weight-black italic">No transaction history detected</p>
+            </div>
+            <div v-else>
+              <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                  <tr style="background: var(--bg-page);">
+                    <th class="pa-6 text-left text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Operation</th>
+                    <th class="pa-6 text-left text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Date & Identity</th>
+                    <th class="pa-6 text-right text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Delta</th>
+                    <th class="pa-6 text-right text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Treasury Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="tx in history" :key="tx.id" class="border-b border-subtle hover:bg-grey-lighten-5 transition-colors">
+                    <td class="pa-6">
+                      <div class="d-flex align-center gap-3">
+                        <v-avatar :color="tx.amount > 0 ? 'success-soft' : 'error-soft'" size="32" rounded="lg">
+                          <v-icon :icon="tx.amount > 0 ? 'mdi-plus' : 'mdi-minus'" :color="tx.amount > 0 ? 'success' : 'error'" size="16"></v-icon>
+                        </v-avatar>
+                        <div>
+                          <p class="text-caption font-weight-black ma-0">{{ formatType(tx.type) }}</p>
+                          <p v-if="tx.auctionId" class="text-[9px] font-weight-bold text-primary uppercase">Ref: {{ tx.auctionId.slice(0,12) }}...</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="pa-6">
+                      <p class="text-caption font-weight-bold ma-0">{{ formatDate(tx.createdAt) }}</p>
+                      <p class="text-[9px] font-weight-black text-muted-custom uppercase">BWC Protocol V2.1</p>
+                    </td>
+                    <td class="pa-6 text-right">
+                      <span :class="tx.amount > 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-black">
+                        {{ tx.amount > 0 ? '+' : '' }}₹{{ Math.abs(tx.amount).toLocaleString() }}
+                      </span>
+                    </td>
+                    <td class="pa-6 text-right">
+                      <span class="text-caption font-weight-black italic">₹{{ tx.newBalance.toLocaleString() }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  </div>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
@@ -173,22 +263,41 @@ const notification = useNotification()
 const authStore = useAuthStore()
 const history = ref([])
 const loading = ref(true)
-const topupAmount = ref(25000)
+const topupAmount = ref(100000)
 const topupLoading = ref(false)
+
+const totalWealth = computed(() => {
+  return (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0)
+})
+
+const commissionRate = computed(() => {
+  const tier = authStore.user?.membershipTier || 'Bronze'
+  if (tier === 'Gold') return 1
+  if (tier === 'Silver') return 3
+  return 5
+})
+
+const tierIcon = computed(() => {
+  const tier = authStore.user?.membershipTier || 'Bronze'
+  if (tier === 'Gold') return 'mdi-crown'
+  if (tier === 'Silver') return 'mdi-medal'
+  return 'mdi-certificate'
+})
 
 const simulateTopup = async () => {
   if (!topupAmount.value || topupAmount.value <= 0) return
   topupLoading.value = true
   try {
     await api.post('/api/wallet/topup', { amount: topupAmount.value })
-    notification.add(`₹${topupAmount.value.toLocaleString()} added to your wallet!`, 'success')
-    topupAmount.value = 25000
+    notification.add(`Treasury expanded by ₹${topupAmount.value.toLocaleString()}`, 'success')
+    topupAmount.value = 100000
     await fetchHistory()
-    await authStore.init()
+    // The auth store uses onSnapshot, so balance will update automatically
   } catch {
-    notification.add('Payment failed. Please try again.', 'error')
+    notification.add('Treasury deposit failed.', 'error')
   } finally {
-    topupLoading.value = false }
+    topupLoading.value = false 
+  }
 }
 
 const fetchHistory = async () => {
@@ -196,20 +305,93 @@ const fetchHistory = async () => {
   try {
     const res = await api.get('/api/wallet/history')
     history.value = res.data
-  } catch { notification.add('Failed to load transactions.', 'error') }
-  finally { loading.value = false }
+  } catch { 
+    notification.add('Forensic link failure.', 'error') 
+  } finally { 
+    loading.value = false 
+  }
 }
 
 const formatDate = (ts) => {
   if (!ts) return ''
-  const d = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts)
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
   return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 const formatType = (type) => {
-  const map = { topup: 'Funds Added', bid_hold: 'Bid Placed (Held)', bid_release: 'Bid Released', win: 'Won Auction' }
+  const map = { 
+    topup: 'Capital Deposit', 
+    bid_hold: 'Escrow Reserve', 
+    bid_release: 'Reserve Released', 
+    win: 'Asset Settlement',
+    WALLET_TOPUP: 'Capital Deposit',
+    BID_HOLD: 'Escrow Reserve',
+    BID_RELEASE: 'Reserve Released',
+    AUCTION_WIN: 'Asset Settlement',
+    DISPUTE_REFUND: 'Manual Settlement'
+  }
   return map[type] || (type || 'Transaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-onMounted(fetchHistory)
+onMounted(() => {
+  fetchHistory()
+})
 </script>
+
+<style scoped>
+.animate-fade {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.shadow-sm {
+  box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05) !important;
+}
+
+.border-subtle {
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+.italic {
+  font-family: 'DM Serif Display', serif;
+}
+
+.not-italic {
+  font-family: 'DM Sans', sans-serif;
+  font-style: normal;
+}
+
+.text-muted-custom {
+  color: #64748b;
+}
+
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+.z-0 { z-index: 0; }
+.z-10 { z-index: 10; }
+
+.success-soft { background: #ecfdf5; }
+.error-soft { background: #fef2f2; }
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+}
+.space-y-8 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 2rem;
+}
+
+.line-clamp-1 {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;  
+  overflow: hidden;
+}
+
+table tr:last-child {
+  border-bottom: none;
+}
+</style>

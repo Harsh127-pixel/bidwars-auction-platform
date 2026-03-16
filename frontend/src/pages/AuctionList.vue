@@ -1,19 +1,30 @@
 <template>
   <div style="background-color: var(--bg-page); min-height: 100vh;">
     <!-- Hero Banner -->
-    <div style="background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 48px 16px 40px;">
+    <div style="background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 32px 16px 32px;">
       <div style="max-width: 1280px; margin: 0 auto;">
-        <div class="d-flex flex-wrap align-center justify-space-between animate-in" style="gap: 24px;">
-          <div>
-            <h1 class="font-display" style="font-size: clamp(32px, 5vw, 52px); color: var(--text-primary); line-height: 1.1; margin: 0 0 12px;">
+        <div class="d-flex flex-wrap align-center justify-center justify-md-space-between animate-in text-center md:text-left" style="gap: 24px;">
+          <div class="w-full md:w-auto">
+            <h1 class="font-display" style="font-size: clamp(28px, 5vw, 48px); color: var(--text-primary); line-height: 1.1; margin: 0 0 12px;">
               Live Auctions
             </h1>
-            <p style="color: var(--text-secondary); font-size: 16px; margin: 0; max-width: 500px;">
+            <p style="color: var(--text-secondary); font-size: 15px;" class="max-w-[500px] mx-auto md:mx-0">
               Bid on authenticated items in real-time. Secure bidding with transparent pricing and instant updates.
             </p>
           </div>
 
-          <div class="d-flex align-center" style="gap: 16px; background: var(--bg-elevated); padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
+          <!-- Whale Leaderboard -->
+          <div v-if="whales.length > 0" class="d-none d-lg-flex align-center gap-6" style="background: var(--bg-elevated); padding: 12px 24px; border-radius: 100px; border: 1px solid var(--border-color);">
+            <div style="font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Whale Leaderboard</div>
+            <div class="d-flex align-center gap-4">
+              <div v-for="(whale, index) in whales" :key="whale.username" class="d-flex align-center gap-2">
+                <v-avatar size="24" color="accent" class="text-[10px] font-weight-black">{{ index + 1 }}</v-avatar>
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ whale.username }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="d-flex align-center hero-stats" style="gap: 16px; background: var(--bg-elevated); padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
             <div>
               <div style="font-size: 24px; font-family: 'DM Serif Display', serif; color: var(--text-primary); line-height: 1;">{{ auctions.length }}</div>
               <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;">Active Lots</div>
@@ -53,13 +64,14 @@
           }"
         >{{ cat }}</button>
 
-        <div style="margin-left: auto; flex-shrink: 0;">
+        <div style="margin-left: auto; flex-shrink: 0;" class="w-full sm:w-auto mt-2 sm:mt-0">
           <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 7px 14px;">
             <v-icon size="16" style="color: var(--text-muted);">mdi-magnify</v-icon>
             <input
               v-model="searchQuery"
               placeholder="Search auctions..."
-              style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; outline: none; width: 180px; font-family: 'DM Sans', sans-serif;"
+              style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; outline: none; font-family: 'DM Sans', sans-serif;"
+              class="w-full sm:w-[180px]"
             />
           </div>
         </div>
@@ -121,10 +133,22 @@
             </div>
 
             <!-- Live badge -->
-            <div style="position: absolute; top: 12px; right: 12px;">
+            <div style="position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
+              <v-btn
+                icon
+                size="x-small"
+                :color="isWatched(auction.id) ? 'error' : 'white'"
+                style="background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); margin-bottom: 4px;"
+                @click.prevent="toggleWatchlist(auction.id)"
+              >
+                <v-icon size="16">{{ isWatched(auction.id) ? 'mdi-heart' : 'mdi-heart-outline' }}</v-icon>
+              </v-btn>
               <div class="live-badge" style="background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color: #4ade80;">
                 <span class="live-dot" style="background: #4ade80;"></span>
                 Live
+              </div>
+              <div v-if="auction.buyItNow && (!auction.bidCount || auction.bidCount === 0)" style="background: var(--accent); color: white; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
+                Buy It Now
               </div>
             </div>
           </div>
@@ -132,7 +156,7 @@
           <!-- Content -->
           <div style="padding: 18px 20px 20px;">
             <h3 style="font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text-primary); margin: 0 0 6px; line-height: 1.3; font-weight: 400;">{{ auction.title }}</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 16px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ auction.description }}</p>
+            <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 16px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ auction.description }}</p>
 
             <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;">
               <div>
@@ -167,14 +191,29 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
+import { useAuthStore } from '../store/auth'
+import { useNotification } from '../services/notification'
 
+const authStore = useAuthStore()
+const notification = useNotification()
 const auctions = ref([])
+const watchlistIds = ref([])
+const whales = ref([])
 const loading = ref(true)
 const categoryFilter = ref('All')
 const searchQuery = ref('')
 const sortBy = ref('newest')
 const categories = ['All', 'Art', 'Watches', 'Vehicles', 'Electronics', 'Collectibles']
 const placeholderImage = 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=800'
+
+const fetchLeaderboard = async () => {
+  try {
+    const res = await api.get('/api/leaderboard')
+    whales.value = res.data
+  } catch (err) {
+    console.error(err)
+  }
+}
 
 const fetchAuctions = async () => {
   try {
@@ -200,7 +239,39 @@ const filteredAuctions = computed(() => {
   return list
 })
 
-onMounted(fetchAuctions)
+const fetchWatchlist = async () => {
+  if (!authStore.user) return
+  try {
+    const res = await api.get('/api/watchlist')
+    watchlistIds.value = res.data.map(a => a.id)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+const toggleWatchlist = async (id) => {
+  if (!authStore.user) return notification.add('Login to track auctions', 'info')
+  try {
+    const res = await api.post(`/api/watchlist/toggle/${id}`)
+    if (res.data.watched) {
+      watchlistIds.value.push(id)
+      notification.add('Added to Watchlist', 'success')
+    } else {
+      watchlistIds.value = watchlistIds.value.filter(wid => wid !== id)
+      notification.add('Removed from Watchlist', 'info')
+    }
+  } catch {
+    notification.add('Watchlist action failed', 'error')
+  }
+}
+
+const isWatched = (id) => watchlistIds.value.includes(id)
+
+onMounted(async () => {
+  await fetchAuctions()
+  fetchLeaderboard()
+  if (authStore.user) fetchWatchlist()
+})
 </script>
 
 <style scoped>

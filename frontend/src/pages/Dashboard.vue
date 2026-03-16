@@ -56,19 +56,21 @@
       </div>
 
       <!-- Verification Banner (if not verified) -->
-      <div v-if="!authStore.user?.isVerified" class="animate-in animate-in-delay-2" style="background: var(--warning-soft); border: 1px solid var(--warning); border-radius: 12px; padding: 20px 24px; margin-bottom: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
-        <v-icon size="24" style="color: var(--warning);">mdi-shield-alert-outline</v-icon>
-        <div style="flex: 1; min-width: 200px;">
-          <div style="font-weight: 700; color: var(--text-primary); font-size: 15px; margin-bottom: 4px;">Verify your account to unlock premium auctions</div>
-          <div style="font-size: 13px; color: var(--text-secondary);">Add your PAN/GST to bid on government repossessions and high-value lots.</div>
+      <div v-if="!authStore.user?.isVerified" class="animate-in animate-in-delay-2 verification-banner">
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <v-icon size="24" style="color: var(--warning);">mdi-shield-alert-outline</v-icon>
+          <div style="flex: 1;">
+            <div style="font-weight: 700; color: var(--text-primary); font-size: 15px; margin-bottom: 4px;">Verify your account to unlock premium auctions</div>
+            <div style="font-size: 13px; color: var(--text-secondary);">Add your PAN/GST to bid on government repossessions and high-value lots.</div>
+          </div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <div class="verification-actions">
           <input
             v-model="verifyCode"
             placeholder="Enter PAN / GST number"
-            style="padding: 9px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; outline: none; font-family: 'DM Sans', sans-serif; width: 220px;"
+            style="padding: 9px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; outline: none; font-family: 'DM Sans', sans-serif; flex: 1; min-width: 200px;"
           />
-          <button @click="verifyAccount" :disabled="verifying" style="background: var(--warning); color: white; border: none; padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
+          <button @click="verifyAccount" :disabled="verifying" style="background: var(--warning); color: white; border: none; padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
             <v-progress-circular v-if="verifying" size="14" width="2" indeterminate color="white"></v-progress-circular>
             {{ verifying ? 'Verifying...' : 'Verify Now' }}
           </button>
@@ -103,40 +105,62 @@
           </router-link>
         </div>
 
-        <table v-else style="width: 100%; border-collapse: collapse;" class="clean-table">
-          <thead>
-            <tr>
-              <th style="text-align: left;">Item</th>
-              <th style="text-align: right;">Your Bid</th>
-              <th style="text-align: center;">Status</th>
-              <th style="text-align: right;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in biddingHistory" :key="item.id">
-              <td>
-                <div style="display: flex; align-items: center; gap: 14px;">
-                  <div style="width: 52px; height: 40px; border-radius: 8px; overflow: hidden; background: var(--bg-subtle); flex-shrink: 0;">
-                    <v-img :src="item.image" cover style="width: 100%; height: 100%;"></v-img>
+        <div v-else class="table-container">
+          <table style="width: 100%; border-collapse: collapse;" class="clean-table">
+            <thead>
+              <tr>
+                <th style="text-align: left;">Item</th>
+                <th style="text-align: right;">Your Bid</th>
+                <th style="text-align: center;">Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in biddingHistory" :key="item.id">
+                <td>
+                  <div style="display: flex; align-items: center; gap: 14px;">
+                    <div style="width: 52px; height: 40px; border-radius: 8px; overflow: hidden; background: var(--bg-subtle); flex-shrink: 0;">
+                      <v-img :src="item.image" cover style="width: 100%; height: 100%;"></v-img>
+                    </div>
+                    <div>
+                      <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">{{ item.item }}</div>
+                      <div style="font-size: 12px; color: var(--text-muted);">ID: {{ item.id.slice(0,8).toUpperCase() }}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">{{ item.item }}</div>
-                    <div style="font-size: 12px; color: var(--text-muted);">ID: {{ item.id.slice(0,8).toUpperCase() }}</div>
-                  </div>
-                </div>
-              </td>
-              <td style="text-align: right;">
-                <span class="bid-amount" style="font-size: 16px; color: var(--text-primary);">₹{{ item.amount }}</span>
-              </td>
-              <td style="text-align: center;">
-                <span style="background: var(--success-soft); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Leading</span>
-              </td>
-              <td style="text-align: right;">
-                <router-link :to="'/auction/' + item.id" style="color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none;">View →</router-link>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+                </td>
+                <td style="text-align: right;">
+                  <span class="bid-amount" style="font-size: 16px; color: var(--text-primary);">₹{{ item.amount }}</span>
+                </td>
+                <td style="text-align: center;">
+                  <span :style="{ background: item.status === 'active' ? 'var(--success-soft)' : 'var(--bg-elevated)', color: item.status === 'active' ? 'var(--success)' : 'var(--text-muted)', padding: '4px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }">{{ item.status }}</span>
+                </td>
+                <td style="text-align: right;">
+                  <router-link :to="'/auction/' + item.id" style="color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none;">View</router-link>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Items Won (Dispute Feed) -->
+      <div v-if="wonItems.length > 0" class="animate-in animate-in-delay-3" style="margin-top: 32px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color);">
+          <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0 0 4px; font-weight: 400;">Items Won</h2>
+          <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Completed auctions where you were the winner</p>
+        </div>
+        <div v-for="item in wonItems" :key="item.id" style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px;">
+           <div style="display: flex; align-items: center; gap: 14px;">
+            <div style="width: 40px; height: 40px; border-radius: 8px; overflow: hidden; background: var(--bg-subtle);">
+              <v-img :src="item.image" cover style="width: 100%; height: 100%;"></v-img>
+            </div>
+            <div>
+              <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">{{ item.item }}</div>
+              <div style="font-size: 12px; color: var(--success); font-weight: 600;">₹{{ item.amount }} · Closed</div>
+            </div>
+           </div>
+           <button @click="initiateDispute(item.id)" style="background: none; border: 1px solid var(--border-color); color: var(--text-muted); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">Report Issue</button>
+        </div>
       </div>
     </div>
   </div>
@@ -180,13 +204,37 @@ const biddingHistory = computed(() => {
   const uid = authStore.user?.uid
   if (!uid) return []
   return rawAuctions.value
-    .filter(a => a.highestBidder === uid)
+    .filter(a => a.highestBidder === uid && a.status === 'active')
+    .map(a => ({
+      id: a.id, item: a.title,
+      amount: a.highestBid.toLocaleString(),
+      status: a.status,
+      image: a.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=200'
+    }))
+})
+
+const wonItems = computed(() => {
+  const uid = authStore.user?.uid
+  if (!uid) return []
+  return rawAuctions.value
+    .filter(a => a.highestBidder === uid && a.status === 'closed')
     .map(a => ({
       id: a.id, item: a.title,
       amount: a.highestBid.toLocaleString(),
       image: a.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=200'
     }))
 })
+
+const initiateDispute = async (id) => {
+  const reason = prompt("Describe the issue with this item (e.g. Item not received, Damaged on arrival):")
+  if (!reason) return
+  try {
+    await api.post('/api/disputes', { auctionId: id, reason })
+    notification.add('Dispute claim filed. Support will review shortly.', 'success')
+  } catch {
+    notification.add('Failed to file dispute.', 'error')
+  }
+}
 
 const activeBidsCount = computed(() => biddingHistory.value.length)
 const itemsWonCount = computed(() => authStore.user?.totalWins || 0)

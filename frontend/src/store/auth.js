@@ -33,7 +33,15 @@ export const useAuthStore = defineStore('auth', {
         role: isAdminEmail ? 'admin' : 'bidder',
         credits: 5000,
         heldCredits: 0,
-        isVerified: false
+        isVerified: false,
+        membershipTier: 'Bronze',
+        reputation: 100,
+        preferences: {
+          smsNotifications: false,
+          twoFactor: true,
+          confidentialBidding: false
+        },
+        createdAt: new Date()
       })
       
       await this.fetchUserData(user.uid)
@@ -58,13 +66,29 @@ export const useAuthStore = defineStore('auth', {
         }
       })
     },
-    async verifyKYC() {
+    async requestKYC(fileData) {
       if (!this.user) return false
       const { updateDoc, doc: fireDoc } = await import('firebase/firestore')
       await updateDoc(fireDoc(db, 'users', this.user.uid), {
-        isVerified: true
+        kycStatus: 'pending',
+        kycSubmittedAt: new Date()
       })
-      // Local state will be updated via onSnapshot listener in fetchUserData
+      return true
+    },
+    async verifyKYC(uid, status) {
+      const { updateDoc, doc: fireDoc } = await import('firebase/firestore')
+      await updateDoc(fireDoc(db, 'users', uid), {
+        isVerified: status === 'approved',
+        kycStatus: status
+      })
+      return true
+    },
+    async updatePreferences(prefs) {
+      if (!this.user) return false
+      const { updateDoc, doc: fireDoc } = await import('firebase/firestore')
+      await updateDoc(fireDoc(db, 'users', this.user.uid), {
+        preferences: { ...this.user.preferences, ...prefs }
+      })
       return true
     },
     async getToken() {

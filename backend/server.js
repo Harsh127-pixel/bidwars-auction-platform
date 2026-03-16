@@ -1,17 +1,11 @@
 const express = require("express")
+
 const cors = require("cors")
 const http = require("http")
 const { Server } = require("socket.io")
 const db = require("./config/firebase")
 
 const app = express()
-
-// Test Firebase Connection
-db.listCollections()
-  .then(() => console.log("Firebase Connected Successfully"))
-  .catch((err) => console.error("Firebase Connection Error:", err))
-
-
 app.use(cors())
 app.use(express.json())
 
@@ -25,6 +19,9 @@ const io = new Server(server,{
 })
 
 app.set('io', io)
+
+const scheduler = require("./services/scheduler")
+scheduler.init(io, db)
 
 require("./sockets/bidding")(io, db)
 

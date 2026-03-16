@@ -7,13 +7,20 @@ const generateListingDescription = async (itemName, features) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
-    const prompt = `Generate a compelling auction listing description for an item named "${itemName}". 
-    Key features to include: ${features}. 
-    Make it sound professional, exciting, and highlight the value for potential bidders.`
+    // If only one argument is provided, treat it as a raw prompt
+    let prompt = itemName;
+    if (features) {
+      prompt = `Generate a compelling auction listing description for an item named "${itemName}". 
+      Key features to include: ${features}. 
+      Make it sound professional, exciting, and highlight the value for potential bidders.`
+    }
 
     const result = await model.generateContent(prompt)
     const response = await result.response
-    const text = response.text()
+    let text = response.text()
+    
+    // Clean up markdown markers if present
+    text = text.replace(/```json/g, "").replace(/```/g, "").trim();
     
     return text
   } catch (error) {
