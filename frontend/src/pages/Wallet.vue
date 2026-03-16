@@ -1,287 +1,31 @@
-<template>
-  <v-container class="py-12 px-6 animate-fade" max-width="1280">
-    <!-- Treasury Hero Intelligence -->
-    <v-row class="mb-10">
-      <v-col cols="12" lg="8">
-        <v-card 
-          elevation="24" 
-          class="rounded-2xl overflow-hidden border-subtle relative bg-primary text-white h-100"
-          style="min-height: 280px;"
-        >
-          <div class="position-absolute inset-0 opacity-10 bg-gradient-to-br from-white to-transparent z-0"></div>
-          
-          <v-row class="pa-10 relative z-10" align="center">
-            <v-col cols="12" md="7">
-              <div class="d-flex align-center gap-3 mb-6">
-                <v-chip color="white" size="small" variant="flat" class="text-primary font-weight-black text-[10px] tracking-[0.2em] px-3">
-                  INSTITUTIONAL TREASURY
-                </v-chip>
-                <v-chip v-if="authStore.user?.isVerified" color="warning" size="small" variant="flat" class="font-weight-black text-[10px] tracking-[0.2em]">
-                   SECURE
-                </v-chip>
-              </div>
-              <h1 class="text-h3 font-weight-black tracking-tighter italic ma-0 leading-tight">
-                Current <span class="not-italic opacity-70">Liquidity</span>
-              </h1>
-              <div class="d-flex align-end gap-3 mt-4">
-                <span class="text-h2 font-weight-black tracking-tighter italic">₹{{ (authStore.user?.credits || 0).toLocaleString() }}</span>
-                <span class="text-h6 font-weight-bold opacity-60 mb-2 italic">INR Liquid</span>
-              </div>
-              <p class="text-body-2 font-weight-medium opacity-70 mt-4 max-w-sm">
-                Total available capital for spot acquisitions and floor operations. Protected by BWC Escrow protocols.
-              </p>
-            </v-col>
-            <v-col cols="12" md="5" class="d-flex justify-center justify-md-end">
-              <div class="text-right">
-                <p class="text-overline font-weight-black opacity-60 ma-0 tracking-widest">ASSET ALLOCATION</p>
-                <div class="mt-4 space-y-4">
-                  <div class="d-flex justify-end align-center gap-4">
-                    <div class="text-right">
-                      <p class="text-caption font-weight-black mb-0 opacity-70">In Escrow</p>
-                      <p class="text-h6 font-weight-black italic ma-0">₹{{ (authStore.user?.heldCredits || 0).toLocaleString() }}</p>
-                    </div>
-                    <v-avatar color="white" variant="tonal" size="40" rounded="lg">
-                      <v-icon icon="mdi-lock-outline" size="20"></v-icon>
-                    </v-avatar>
-                  </div>
-                  <div class="d-flex justify-end align-center gap-4">
-                    <div class="text-right">
-                      <p class="text-caption font-weight-black mb-0 opacity-70">Total Wealth</p>
-                      <p class="text-h6 font-weight-black italic ma-0">₹{{ totalWealth.toLocaleString() }}</p>
-                    </div>
-                    <v-avatar color="white" variant="tonal" size="40" rounded="lg">
-                      <v-icon icon="mdi-bank-outline" size="20"></v-icon>
-                    </v-avatar>
-                  </div>
-                </div>
-              </div>
-            </v-col>
-          </v-row>
-        </v-card>
-      </v-col>
-
-      <!-- Tier Privileges -->
-      <v-col cols="12" lg="4">
-        <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm h-100 flex-column d-flex overflow-hidden relative">
-          <div class="position-absolute rotate-12 -right-10 -top-10 opacity-5">
-             <v-icon icon="mdi-crown" size="200" color="primary"></v-icon>
-          </div>
-          <div class="relative z-10">
-            <p class="text-overline font-weight-black text-muted-custom tracking-widest mb-6">CURATOR CLASS STATUS</p>
-            <div class="d-flex align-center gap-4 mb-8">
-              <v-avatar color="primary" size="64" variant="tonal" rounded="xl">
-                <v-icon :icon="tierIcon" size="32"></v-icon>
-              </v-avatar>
-              <div>
-                <h3 class="text-h4 font-weight-black italic ma-0">{{ authStore.user?.membershipTier || 'Bronze' }}</h3>
-                <p class="text-caption font-weight-bold text-primary uppercase tracking-widest">Institutional Access</p>
-              </div>
-            </div>
-            
-            <v-divider class="mb-6"></v-divider>
-            
-            <div class="space-y-4">
-              <div class="d-flex justify-space-between">
-                <span class="text-caption font-weight-black text-muted-custom uppercase">Platform Fee</span>
-                <span class="text-caption font-weight-black text-primary">{{ commissionRate }}%</span>
-              </div>
-              <div class="d-flex justify-space-between">
-                <span class="text-caption font-weight-black text-muted-custom uppercase">Treasury Limit</span>
-                <span class="text-caption font-weight-black text-primary">UNLIMITED</span>
-              </div>
-              <div class="d-flex justify-space-between">
-                <span class="text-caption font-weight-black text-muted-custom uppercase">Settlement Speed</span>
-                <span class="text-caption font-weight-black text-primary">INSTANT</span>
-              </div>
-            </div>
-
-            <v-btn block variant="tonal" color="primary" class="rounded-xl mt-8 font-weight-black" height="48">
-              UPGRADE STATUS
-            </v-btn>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <v-row>
-      <!-- Treasury Operations -->
-      <v-col cols="12" lg="4">
-        <div class="space-y-8">
-          <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm relative overflow-hidden">
-            <div class="d-flex align-center gap-4 mb-8">
-              <v-avatar color="success" variant="tonal" rounded="lg" size="48">
-                <v-icon icon="mdi-bank-transfer-in" size="24"></v-icon>
-              </v-avatar>
-              <div>
-                <h3 class="text-h5 font-weight-black italic tracking-tight">Add <span class="text-success not-italic">Capital</span></h3>
-                <p class="text-[10px] font-weight-bold text-muted-custom uppercase tracking-widest leading-none mt-1">Instant funding via secure gateway</p>
-              </div>
-            </div>
-
-            <v-row class="mb-6">
-              <v-col cols="6" v-for="amount in [25000, 100000, 500000, 1000000]" :key="amount" class="pa-1">
-                <v-btn 
-                  block 
-                  variant="tonal" 
-                  :color="topupAmount === amount ? 'primary' : 'grey'"
-                  class="rounded-xl font-weight-black border"
-                  :class="{'border-primary': topupAmount === amount}"
-                  @click="topupAmount = amount"
-                >
-                  ₹{{ amount >= 1000000 ? (amount/1000000)+'M' : (amount/1000)+'K' }}
-                </v-btn>
-              </v-col>
-            </v-row>
-
-            <v-text-field
-              v-model.number="topupAmount"
-              prefix="₹"
-              label="Custom Amount"
-              variant="outlined"
-              class="rounded-xl mb-6"
-              hide-details
-            ></v-text-field>
-
-            <div class="bg-grey-lighten-5 rounded-xl pa-6 mb-6 border border-subtle">
-              <div class="d-flex justify-space-between mb-4">
-                <span class="text-caption font-weight-black text-muted-custom uppercase">Processing Fee</span>
-                <span class="text-caption font-weight-black text-success">0 (FREE)</span>
-              </div>
-              <div class="d-flex justify-space-between pt-4 border-t border-subtle">
-                <span class="text-caption font-weight-black text-primary uppercase">Effective Top-up</span>
-                <span class="text-h6 font-weight-black italic">₹{{ (topupAmount || 0).toLocaleString() }}</span>
-              </div>
-            </div>
-
-            <v-btn 
-              block 
-              color="primary" 
-              class="rounded-pill" 
-              height="56" 
-              @click="simulateTopup"
-              :loading="topupLoading"
-            >
-              FINALIZE DEPOSIT
-            </v-btn>
-          </v-card>
-
-          <!-- Security Matrix -->
-          <v-card variant="outlined" class="rounded-2xl pa-10 bg-surface border-subtle shadow-sm">
-            <p class="text-overline font-weight-black text-primary tracking-[0.2em] mb-6 uppercase">Treasury Security</p>
-            <div class="space-y-4">
-              <div class="d-flex align-center gap-4 pa-4 bg-grey-lighten-5 rounded-xl">
-                 <v-icon icon="mdi-shield-check" color="success"></v-icon>
-                 <div>
-                   <p class="text-caption font-weight-black ma-0">Escrow Safeguard</p>
-                   <p class="text-[10px] font-weight-bold text-muted-custom uppercase">Active for all bids</p>
-                 </div>
-              </div>
-              <div class="d-flex align-center gap-4 pa-4 bg-grey-lighten-5 rounded-xl">
-                 <v-icon icon="mdi-sync" color="primary"></v-icon>
-                 <div>
-                   <p class="text-caption font-weight-black ma-0">Forensic Sync</p>
-                   <p class="text-[10px] font-weight-bold text-muted-custom uppercase">Real-time ledger audit</p>
-                 </div>
-              </div>
-            </div>
-          </v-card>
-        </div>
-      </v-col>
-
-      <!-- Forensic Audit Trail -->
-      <v-col cols="12" lg="8">
-        <v-card variant="outlined" class="rounded-2xl bg-surface border-subtle shadow-sm overflow-hidden h-100 flex-column d-flex text-left">
-          <div class="pa-8 d-flex align-center justify-space-between bg-grey-lighten-5 border-b border-subtle">
-            <div>
-              <h3 class="text-h5 font-weight-black italic ma-0 tracking-tighter">Forensic Audit <span class="text-primary not-italic">Trail</span></h3>
-              <p class="text-[10px] font-weight-bold text-muted-custom uppercase tracking-widest mt-1">Cryptographic record of all wealth movements</p>
-            </div>
-            <v-btn variant="tonal" rounded="pill" color="primary" icon="mdi-refresh" @click="fetchHistory" :loading="loading"></v-btn>
-          </div>
-
-          <div class="flex-grow-1 overflow-y-auto" style="max-height: 800px;">
-            <div v-if="loading" class="pa-12 text-center">
-              <v-progress-circular indeterminate color="primary"></v-progress-circular>
-            </div>
-            <div v-else-if="history.length === 0" class="pa-20 text-center text-muted-custom">
-               <v-icon icon="mdi-receipt-text-outline" size="64" class="mb-4 opacity-20"></v-icon>
-               <p class="text-h6 font-weight-black italic">No transaction history detected</p>
-            </div>
-            <div v-else>
-              <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                  <tr style="background: var(--bg-page);">
-                    <th class="pa-6 text-left text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Operation</th>
-                    <th class="pa-6 text-left text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Date & Identity</th>
-                    <th class="pa-6 text-right text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Delta</th>
-                    <th class="pa-6 text-right text-[10px] font-weight-black uppercase text-muted-custom tracking-widest">Treasury Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="tx in history" :key="tx.id" class="border-b border-subtle hover:bg-grey-lighten-5 transition-colors">
-                    <td class="pa-6">
-                      <div class="d-flex align-center gap-3">
-                        <v-avatar :color="tx.amount > 0 ? 'success-soft' : 'error-soft'" size="32" rounded="lg">
-                          <v-icon :icon="tx.amount > 0 ? 'mdi-plus' : 'mdi-minus'" :color="tx.amount > 0 ? 'success' : 'error'" size="16"></v-icon>
-                        </v-avatar>
-                        <div>
-                          <p class="text-caption font-weight-black ma-0">{{ formatType(tx.type) }}</p>
-                          <p v-if="tx.auctionId" class="text-[9px] font-weight-bold text-primary uppercase">Ref: {{ tx.auctionId.slice(0,12) }}...</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td class="pa-6">
-                      <p class="text-caption font-weight-bold ma-0">{{ formatDate(tx.createdAt) }}</p>
-                      <p class="text-[9px] font-weight-black text-muted-custom uppercase">BWC Protocol V2.1</p>
-                    </td>
-                    <td class="pa-6 text-right">
-                      <span :class="tx.amount > 0 ? 'text-success' : 'text-error'" class="text-caption font-weight-black">
-                        {{ tx.amount > 0 ? '+' : '' }}₹{{ Math.abs(tx.amount).toLocaleString() }}
-                      </span>
-                    </td>
-                    <td class="pa-6 text-right">
-                      <span class="text-caption font-weight-black italic">₹{{ tx.newBalance.toLocaleString() }}</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
-</template>
-
+<!-- FILE: frontend/src/pages/Wallet.vue -->
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../store/auth'
-import api from '../services/api'
 import { useNotification } from '../services/notification'
+import api from '../services/api'
 
-const notification = useNotification()
 const authStore = useAuthStore()
+const notification = useNotification()
 const history = ref([])
 const loading = ref(true)
 const topupAmount = ref(100000)
 const topupLoading = ref(false)
+const showTopup = ref(false)
+const historyFilter = ref('all')
 
-const totalWealth = computed(() => {
-  return (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0)
-})
+const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
+const totalWealth = computed(() => (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0))
+const availablePct = computed(() => totalWealth.value ? Math.round((authStore.user?.credits || 0) / totalWealth.value * 100) : 100)
 
-const commissionRate = computed(() => {
-  const tier = authStore.user?.membershipTier || 'Bronze'
-  if (tier === 'Gold') return 1
-  if (tier === 'Silver') return 3
-  return 5
-})
+const quickAmounts = [25000, 100000, 500000, 1000000]
+const fmtQuick = (n) => n >= 1000000 ? (n / 1000000) + 'M' : (n / 1000) + 'K'
+const txTypes = { all: 'All', credit: 'Credits', debit: 'Debits' }
 
-const tierIcon = computed(() => {
-  const tier = authStore.user?.membershipTier || 'Bronze'
-  if (tier === 'Gold') return 'mdi-crown'
-  if (tier === 'Silver') return 'mdi-medal'
-  return 'mdi-certificate'
+const filteredHistory = computed(() => {
+  if (historyFilter.value === 'credit') return history.value.filter(t => t.amount >= 0)
+  if (historyFilter.value === 'debit')  return history.value.filter(t => t.amount < 0)
+  return history.value
 })
 
 const simulateTopup = async () => {
@@ -289,15 +33,11 @@ const simulateTopup = async () => {
   topupLoading.value = true
   try {
     await api.post('/api/wallet/topup', { amount: topupAmount.value })
-    notification.add(`Treasury expanded by ₹${topupAmount.value.toLocaleString()}`, 'success')
-    topupAmount.value = 100000
+    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added!`, 'success')
+    showTopup.value = false
     await fetchHistory()
-    // The auth store uses onSnapshot, so balance will update automatically
-  } catch {
-    notification.add('Treasury deposit failed.', 'error')
-  } finally {
-    topupLoading.value = false 
-  }
+  } catch { notification.add('Top-up failed.', 'error') }
+  finally { topupLoading.value = false }
 }
 
 const fetchHistory = async () => {
@@ -305,93 +45,406 @@ const fetchHistory = async () => {
   try {
     const res = await api.get('/api/wallet/history')
     history.value = res.data
-  } catch { 
-    notification.add('Forensic link failure.', 'error') 
-  } finally { 
-    loading.value = false 
-  }
+  } catch { notification.add('Could not load history.', 'error') }
+  finally { loading.value = false }
 }
 
-const formatDate = (ts) => {
+const fmtDate = (ts) => {
   if (!ts) return ''
-  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  try {
+    const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
+    if (isNaN(d.getTime())) return ''
+    const diff = Date.now() - d
+    if (diff < 60000)    return 'Just now'
+    if (diff < 3600000)  return Math.floor(diff / 60000) + 'm ago'
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago'
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch { return '' }
 }
 
-const formatType = (type) => {
-  const map = { 
-    topup: 'Capital Deposit', 
-    bid_hold: 'Escrow Reserve', 
-    bid_release: 'Reserve Released', 
-    win: 'Asset Settlement',
-    WALLET_TOPUP: 'Capital Deposit',
-    BID_HOLD: 'Escrow Reserve',
-    BID_RELEASE: 'Reserve Released',
-    AUCTION_WIN: 'Asset Settlement',
-    DISPUTE_REFUND: 'Manual Settlement'
-  }
-  return map[type] || (type || 'Transaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
+const fmtType = (type) => ({
+  WALLET_TOPUP: 'Deposit', BID_HOLD: 'Bid Reserved', BID_REFUND: 'Bid Refunded',
+  BUY_IT_NOW: 'Buy It Now', BID_WIN_FINAL: 'Auction Won', ESCROW_PAYOUT: 'Escrow Released',
+  DISPUTE_REFUND: 'Dispute Refund', ADMIN_TOPUP: 'Admin Adjustment',
+}[type] || type?.replace(/_/g, ' ') || 'Transaction')
 
-onMounted(() => {
-  fetchHistory()
-})
+const txIcon = (type) => ({ WALLET_TOPUP:'↓', BID_HOLD:'⊠', BID_REFUND:'↩',
+  BUY_IT_NOW:'⚡', BID_WIN_FINAL:'★', ESCROW_PAYOUT:'✓', DISPUTE_REFUND:'↩', ADMIN_TOPUP:'⊕' }[type] || '•')
+
+onMounted(fetchHistory)
 </script>
 
+<template>
+  <div class="wallet-page">
+
+    <!-- HERO -->
+    <div class="balance-hero">
+      <div class="balance-hero__glow"></div>
+      <div class="page-wrap">
+        <div class="balance-hero__inner">
+          <div class="balance-hero__left">
+            <div class="hero-eyebrow">Available Balance</div>
+            <div class="hero-amount">{{ fmt(authStore.user?.credits) }}</div>
+            <div class="hero-chips">
+              <span class="hero-chip">
+                <span class="chip-dot chip-dot--orange"></span>
+                {{ fmt(authStore.user?.heldCredits) }} in escrow
+              </span>
+              <span class="hero-chip">
+                <span class="chip-dot chip-dot--muted"></span>
+                {{ fmt(totalWealth) }} total
+              </span>
+            </div>
+          </div>
+          <div class="balance-hero__right">
+            <div class="ring-wrap">
+              <svg viewBox="0 0 80 80" class="ring-svg">
+                <circle cx="40" cy="40" r="34" class="ring-track"/>
+                <circle cx="40" cy="40" r="34" class="ring-fill"
+                  :style="`stroke-dashoffset:${213.6 - 213.6 * availablePct / 100}`"/>
+              </svg>
+              <div class="ring-label">
+                <div class="ring-pct">{{ availablePct }}%</div>
+                <div class="ring-sub">free</div>
+              </div>
+            </div>
+            <button class="btn-add" @click="showTopup = true">
+              <span class="btn-add__plus">+</span> Add Funds
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-wrap wallet-body">
+
+      <!-- STAT TILES -->
+      <div class="stat-row fade-up">
+        <div class="stat-tile fade-up" v-for="(tile, i) in [
+          { icon:'↓', cls:'--orange', val: history.filter(t=>t.amount>0).length,  label:'Deposits'  },
+          { icon:'↑', cls:'--red',    val: history.filter(t=>t.amount<0).length,  label:'Debits'    },
+          { icon:'★', cls:'--green',  val: history.filter(t=>t.type==='BID_WIN_FINAL').length, label:'Wins' },
+          { icon:'Σ', cls:'--muted',  val: history.length,                         label:'All Txns'  },
+        ]" :key="i" :style="`animation-delay:${i*0.06}s`">
+          <div class="tile-icon" :class="`tile-icon${tile.cls}`">{{ tile.icon }}</div>
+          <div class="tile-val">{{ tile.val }}</div>
+          <div class="tile-label">{{ tile.label }}</div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="history-card fade-up fade-up-2">
+        <div class="history-head">
+          <h2 class="history-title">Transactions</h2>
+          <div class="history-filters">
+            <button v-for="(label, key) in txTypes" :key="key"
+              class="fpill" :class="{'fpill--on': historyFilter === key}"
+              @click="historyFilter = key">{{ label }}</button>
+          </div>
+          <button class="refresh-btn" @click="fetchHistory" :disabled="loading">
+            <span :class="{'spin': loading}">↻</span>
+          </button>
+        </div>
+
+        <div v-if="loading" class="tx-list">
+          <div v-for="n in 5" :key="n" class="tx-skel"></div>
+        </div>
+
+        <TransitionGroup v-else-if="filteredHistory.length" name="tx" tag="div" class="tx-list">
+          <div v-for="tx in filteredHistory" :key="tx.id" class="tx-row">
+            <div class="tx-ico" :class="tx.amount >= 0 ? 'tx-ico--cr' : 'tx-ico--db'">{{ txIcon(tx.type) }}</div>
+            <div class="tx-info">
+              <div class="tx-name">{{ fmtType(tx.type) }}</div>
+              <div class="tx-sub">
+                <span v-if="tx.auctionId" class="tx-id">{{ tx.auctionId.slice(0,8).toUpperCase() }}</span>
+                <span class="tx-date">{{ fmtDate(tx.createdAt) }}</span>
+              </div>
+            </div>
+            <div class="tx-right">
+              <div class="tx-amt" :class="tx.amount >= 0 ? 'tx-amt--cr' : 'tx-amt--db'">
+                {{ tx.amount >= 0 ? '+' : '' }}{{ fmt(tx.amount) }}
+              </div>
+              <div class="tx-bal">{{ fmt(tx.newBalance) }}</div>
+            </div>
+          </div>
+        </TransitionGroup>
+
+        <div v-else class="tx-empty">
+          <div class="tx-empty__icon">◈</div>
+          <div class="tx-empty__title">No transactions yet</div>
+          <div class="tx-empty__sub">Add funds to get started</div>
+          <button class="btn-add btn-add--sm" style="margin-top:16px" @click="showTopup=true">+ Add Funds</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ADD FUNDS DRAWER -->
+    <Teleport to="body">
+      <Transition name="drawer">
+        <div v-if="showTopup" class="drawer-overlay" @click.self="showTopup = false">
+          <div class="drawer">
+            <div class="drawer-handle"></div>
+            <div class="drawer-head">
+              <h3 class="drawer-title">Add Funds</h3>
+              <button class="drawer-close" @click="showTopup = false">✕</button>
+            </div>
+            <div class="drawer-body">
+
+              <div class="balance-preview">
+                <div class="preview-label">Current Balance</div>
+                <div class="preview-val">{{ fmt(authStore.user?.credits) }}</div>
+                <Transition name="fade">
+                  <div v-if="topupAmount > 0" class="preview-after">
+                    → {{ fmt((authStore.user?.credits || 0) + topupAmount) }} after deposit
+                  </div>
+                </Transition>
+              </div>
+
+              <div class="quick-grid">
+                <button v-for="amt in quickAmounts" :key="amt"
+                  class="quick-chip" :class="{'quick-chip--on': topupAmount === amt}"
+                  @click="topupAmount = amt">
+                  ₹{{ fmtQuick(amt) }}
+                </button>
+              </div>
+
+              <div class="field-wrap" style="margin-top:20px">
+                <label class="field-label">Custom amount</label>
+                <div class="amt-wrap">
+                  <span class="amt-prefix">₹</span>
+                  <input v-model.number="topupAmount" type="number" min="100"
+                    class="field amt-field" placeholder="0" />
+                </div>
+              </div>
+
+              <button class="btn-deposit" :disabled="topupLoading || !topupAmount || topupAmount <= 0" @click="simulateTopup">
+                <span v-if="topupLoading" class="dep-spin"></span>
+                <span v-else>↓</span>
+                {{ topupLoading ? 'Processing…' : `Deposit ${topupAmount > 0 ? fmt(topupAmount) : ''}` }}
+              </button>
+
+              <div class="drawer-note">No processing fees · Instant credit</div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+  </div>
+</template>
+
 <style scoped>
-.animate-fade {
-  animation: fadeIn 0.6s ease-out forwards;
+.wallet-page { min-height: 100vh; background: var(--bg); }
+
+/* HERO */
+.balance-hero { position: relative; padding: 44px 0 52px; overflow: hidden; }
+.balance-hero__glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 120% at 5% 60%, rgba(251,146,60,0.09) 0%, transparent 65%),
+              radial-gradient(ellipse 50% 70% at 95% 10%, rgba(251,146,60,0.05) 0%, transparent 55%);
+}
+.balance-hero__inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange); margin-bottom: 12px; }
+.hero-amount {
+  font-family: var(--font-display); font-size: clamp(38px, 6vw, 68px);
+  font-weight: 600; color: var(--text); letter-spacing: -0.02em; line-height: 1; margin-bottom: 18px;
+  animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+.hero-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.hero-chip {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-2);
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px;
+}
+.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.chip-dot--orange { background: var(--orange); }
+.chip-dot--muted  { background: var(--text-3); }
+
+.balance-hero__right { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+
+/* Ring */
+.ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: var(--bg-raised); stroke-width: 8; }
+.ring-fill {
+  fill: none; stroke: var(--orange); stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 213.6; transition: stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1);
+}
+.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1; }
+.ring-sub { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Add button */
+.btn-add {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 22px; background: var(--orange); color: #fff;
+  border: none; border-radius: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(251,146,60,0.3);
+}
+.btn-add:hover { background: #f97316; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(251,146,60,0.4); }
+.btn-add:active { transform: translateY(0); }
+.btn-add--sm { padding: 9px 18px; font-size: 13px; }
+.btn-add__plus {
+  width: 20px; height: 20px; background: rgba(255,255,255,0.25); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+/* BODY */
+.wallet-body { padding-bottom: 64px; }
+
+/* STAT TILES */
+.stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px; }
+.stat-tile {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;
+  transition: border-color 0.2s, transform 0.2s;
 }
+.stat-tile:hover { border-color: var(--border-md); transform: translateY(-2px); }
+.tile-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; margin-bottom: 4px; }
+.tile-icon--orange { background: var(--orange-dim); color: var(--orange); }
+.tile-icon--red    { background: var(--red-dim);    color: var(--red); }
+.tile-icon--green  { background: var(--green-dim);  color: var(--green); }
+.tile-icon--muted  { background: var(--bg-raised);  color: var(--text-2); }
+.tile-val   { font-family: var(--font-display); font-size: 26px; color: var(--text); line-height: 1; }
+.tile-label { font-size: 12px; color: var(--text-3); }
 
-.shadow-sm {
-  box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05) !important;
+/* HISTORY CARD */
+.history-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.history-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
 }
-
-.border-subtle {
-  border-color: rgba(0,0,0,0.08) !important;
+.history-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); flex: 1; min-width: 80px; }
+.history-filters { display: flex; gap: 5px; }
+.fpill {
+  padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2); font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
 }
-
-.italic {
-  font-family: 'DM Serif Display', serif;
+.fpill:hover { background: var(--bg-hover); color: var(--text); }
+.fpill--on { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+.refresh-btn {
+  width: 32px; height: 32px; background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 8px; cursor: pointer; color: var(--text-2); font-size: 15px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
 }
+.refresh-btn:hover { color: var(--text); }
+.spin { display: inline-block; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.not-italic {
-  font-family: 'DM Sans', sans-serif;
-  font-style: normal;
+.tx-list { padding: 6px 0; }
+.tx-skel {
+  height: 62px; margin: 4px 16px; border-radius: 10px;
+  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s ease infinite;
 }
+@keyframes shimmer { to { background-position: -200% 0; } }
 
-.text-muted-custom {
-  color: #64748b;
+.tx-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px; border-bottom: 1px solid var(--border); transition: background 0.15s;
 }
-
-.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-.z-0 { z-index: 0; }
-.z-10 { z-index: 10; }
-
-.success-soft { background: #ecfdf5; }
-.error-soft { background: #fef2f2; }
-
-.space-y-4 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 1rem;
+.tx-row:last-child { border-bottom: none; }
+.tx-row:hover { background: var(--bg-raised); }
+.tx-ico {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
 }
-.space-y-8 > :not([hidden]) ~ :not([hidden]) {
-  margin-top: 2rem;
-}
+.tx-ico--cr { background: var(--green-dim); color: var(--green); }
+.tx-ico--db { background: var(--red-dim);   color: var(--red); }
+.tx-info { flex: 1; min-width: 0; }
+.tx-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-sub  { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.tx-id   { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.tx-date { font-size: 12px; color: var(--text-3); }
+.tx-right { text-align: right; flex-shrink: 0; }
+.tx-amt  { font-size: 15px; font-weight: 700; }
+.tx-amt--cr { color: var(--green); }
+.tx-amt--db { color: var(--red); }
+.tx-bal  { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.tx-enter-active { transition: all 0.25s ease; }
+.tx-enter-from   { opacity: 0; transform: translateX(-10px); }
 
-.line-clamp-1 {
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  line-clamp: 1;
-  -webkit-box-orient: vertical;  
-  overflow: hidden;
-}
+.tx-empty { padding: 52px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.tx-empty__icon  { font-size: 32px; color: var(--text-3); opacity: 0.35; }
+.tx-empty__title { font-family: var(--font-display); font-size: 17px; color: var(--text-2); }
+.tx-empty__sub   { font-size: 13px; color: var(--text-3); }
 
-table tr:last-child {
-  border-bottom: none;
+/* DRAWER */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 400;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.drawer {
+  width: 100%; max-width: 520px; background: var(--bg-card);
+  border: 1px solid var(--border-md); border-radius: 24px 24px 0 0;
+  max-height: 92vh; overflow-y: auto;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+.drawer-handle { width: 40px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 12px auto 0; }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px;
+}
+.drawer-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--text); }
+.drawer-close {
+  width: 32px; height: 32px; background: var(--bg-raised); border: none; border-radius: 50%;
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+}
+.drawer-close:hover { background: var(--bg-hover); color: var(--text); }
+.drawer-body { padding: 0 24px 24px; }
+
+.balance-preview {
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
+}
+.preview-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 4px; }
+.preview-val   { font-family: var(--font-display); font-size: 28px; color: var(--text); }
+.preview-after { font-size: 13px; color: var(--orange); margin-top: 6px; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
+
+.quick-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.quick-chip {
+  padding: 10px 4px; background: var(--bg-raised); border: 1px solid var(--border-md); border-radius: 10px;
+  color: var(--text-2); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.quick-chip:hover { background: var(--bg-hover); color: var(--text); }
+.quick-chip--on { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+
+.amt-wrap { position: relative; }
+.amt-prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--text-2); pointer-events: none; }
+.amt-field { padding-left: 30px !important; font-size: 18px !important; font-weight: 600; }
+
+.btn-deposit {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px; background: var(--orange); color: #fff; border: none; border-radius: 12px;
+  font-family: var(--font-body); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px;
+  transition: all 0.2s; box-shadow: 0 4px 20px rgba(251,146,60,0.28);
+}
+.btn-deposit:hover:not(:disabled) { background: #f97316; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(251,146,60,0.4); }
+.btn-deposit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.dep-spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.drawer-note { margin-top: 14px; font-size: 12px; color: var(--text-3); text-align: center; line-height: 1.6; }
+
+/* Drawer animation */
+.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s ease; }
+.drawer-enter-active .drawer, .drawer-leave-active .drawer { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
+.drawer-enter-from { opacity: 0; }
+.drawer-enter-from .drawer { transform: translateY(100%); }
+.drawer-leave-to { opacity: 0; }
+.drawer-leave-to .drawer { transform: translateY(100%); }
+
+/* RESPONSIVE */
+@media (max-width: 640px) {
+  .stat-row { grid-template-columns: repeat(2,1fr); }
+  .balance-hero__right { display: none; }
+  .quick-grid { grid-template-columns: repeat(2,1fr); }
+  .tx-row { padding: 12px 16px; gap: 10px; }
+  .history-head { padding: 14px 16px; }
 }
 </style>
