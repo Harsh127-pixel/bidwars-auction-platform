@@ -1,84 +1,197 @@
 <template>
-  <div class="min-h-[calc(100vh-80px)] flex items-center justify-center p-6 bg-base">
-    <div class="max-w-md w-full">
-      <div class="text-center mb-12">
-        <div class="inline-flex items-center justify-center w-20 h-20 bg-indigo-600 rounded-[2rem] shadow-2xl shadow-indigo-500/40 mb-8 -rotate-3">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-          </svg>
-        </div>
-        <h1 class="text-5xl font-black tracking-tighter mb-4 italic">Establish <span class="text-indigo-600 not-italic">Rank</span></h1>
-        <p class="text-secondary-custom font-medium italic">Join the elite network of rare asset bidders.</p>
-      </div>
-
-      <div class="bg-surface p-10 rounded-[3rem] border border-subtle-custom shadow-xl">
-        <form @submit.prevent="handleRegister" class="space-y-6">
-          <div v-if="error" class="p-4 rounded-2xl bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/20 flex items-center gap-3">
-             <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-             <p class="text-xs font-bold text-red-600 dark:text-red-400 uppercase tracking-widest">{{ error }}</p>
-          </div>
-
-          <div class="space-y-4">
-            <div>
-              <label class="block text-[10px] font-black text-muted-custom uppercase tracking-[0.2em] mb-2 px-1">Pseudonym</label>
-              <input v-model="username" type="text" placeholder="John Wick" class="w-full bg-base border border-subtle-custom rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all">
+  <v-container class="fill-height pa-0" fluid>
+    <!-- Environmental HUD -->
+    <div class="fixed inset-0 hud-overlay z-0 opacity-30"></div>
+    
+    <v-row align="center" justify="center" class="fill-height ma-0 relative z-10">
+      <v-col cols="12" sm="10" md="10" lg="8" xl="6" class="d-flex justify-center">
+        <v-card 
+          elevation="24" 
+          class="rounded-3xl overflow-hidden d-flex flex-column flex-md-row w-100 bg-surface border-subtle shadow-premium animate-zoom"
+          style="min-height: 680px;"
+        >
+          <!-- Authentication Command Pane -->
+          <v-col cols="12" md="6" lg="7" class="pa-12 pa-md-16 d-flex flex-column justify-center bg-surface relative order-2 md:order-1">
+            <div class="mb-12 text-left">
+              <div class="d-flex align-center gap-3 mb-2">
+                <v-chip color="primary" size="x-small" variant="flat" class="font-weight-black px-3 py-3 text-[9px] tracking-widest">GATEWAY 02</v-chip>
+                <p class="text-overline font-weight-black text-primary tracking-[0.4em] uppercase ma-0 opacity-60">Enrollment Request</p>
+              </div>
+              <h3 class="text-[52px] font-weight-black italic tracking-tighter ma-0 leading-none">
+                Identity <span class="text-primary not-italic">Creation</span>
+              </h3>
             </div>
 
-            <div>
-              <label class="block text-[10px] font-black text-muted-custom uppercase tracking-[0.2em] mb-2 px-1">Digital Mail</label>
-              <input v-model="email" type="email" placeholder="email@address.com" class="w-full bg-base border border-subtle-custom rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all">
-            </div>
+            <v-form @submit.prevent="handleRegister" class="space-y-6">
+              <v-text-field
+                v-model="username"
+                label="PROFESSIONAL PSEUDONYM"
+                variant="outlined"
+                rounded="xl"
+                prepend-inner-icon="mdi-account-outline"
+                class="font-weight-bold"
+                placeholder="Executive Handle"
+                hide-details="auto"
+                :rules="[v => !!v || 'Pseudonym required']"
+              ></v-text-field>
+
+              <v-text-field
+                v-model="email"
+                label="DIGITAL MAIL IDENTITY"
+                variant="outlined"
+                rounded="xl"
+                prepend-inner-icon="mdi-email-outline"
+                class="font-weight-bold"
+                placeholder="identity@bidwars.elite"
+                type="email"
+                hide-details="auto"
+                :rules="[v => !!v || 'Identifier required']"
+              ></v-text-field>
+
+              <v-text-field
+                v-model="password"
+                label="PASSKEY PROTOCOL"
+                variant="outlined"
+                rounded="xl"
+                prepend-inner-icon="mdi-lock-outline"
+                class="font-weight-bold"
+                placeholder="••••••••"
+                type="password"
+                hide-details="auto"
+                :rules="[v => !!v || 'Passkey required']"
+              ></v-text-field>
+              
+              <v-checkbox color="primary" hide-details density="comfortable" class="mt-4">
+                <template v-slot:label>
+                  <span class="text-[11px] font-weight-bold text-muted-custom leading-tight">
+                    I acknowledge the <span class="text-primary font-weight-black">BWC Compliance Standards</span> for the bidding floor.
+                  </span>
+                </template>
+              </v-checkbox>
+
+              <v-btn
+                type="submit"
+                color="primary"
+                block
+                height="80"
+                rounded="pill"
+                class="font-weight-black text-caption tracking-[0.4em] mt-8 shadow-xl"
+                elevation="12"
+                :loading="loading"
+                prepend-icon="mdi-account-plus-outline"
+              >
+                INITIALIZE ENROLLMENT
+              </v-btn>
+
+              <div class="text-center mt-12 pt-8 border-t border-subtle border-opacity-30">
+                <p class="text-caption font-weight-bold text-muted-custom uppercase tracking-[0.2em] opacity-40">
+                  Existing participant?
+                  <router-link to="/login" class="text-primary font-weight-black text-decoration-none ml-2 border-b-2 border-primary border-opacity-20 pb-1">Authenticate Session</router-link>
+                </p>
+              </div>
+            </v-form>
+          </v-col>
+
+          <!-- Institutional Visual Pane -->
+          <v-col cols="12" md="6" lg="5" class="pa-0 relative bg-primary d-flex flex-column justify-center align-center text-center text-white overflow-hidden order-1 md:order-2">
+            <v-img
+              src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1000"
+              cover
+              class="absolute inset-0 opacity-20 scale-110"
+            ></v-img>
             
-            <div>
-              <label class="block text-[10px] font-black text-muted-custom uppercase tracking-[0.2em] mb-2 px-1">Passkey</label>
-              <input v-model="password" type="password" placeholder="••••••••" class="w-full bg-base border border-subtle-custom rounded-2xl p-4 font-bold outline-none focus:ring-2 focus:ring-indigo-100 dark:focus:ring-indigo-900/30 transition-all">
+            <div class="pa-12 relative z-10 w-100">
+              <v-avatar color="white" class="rounded-2xl shadow-2xl mb-10 rotate-n3 border-4 border-white-opacity-20" size="80">
+                <v-icon icon="mdi-account-plus" color="primary" size="40"></v-icon>
+              </v-avatar>
+              <h2 class="text-h2 font-weight-black tracking-tighter italic mb-6 leading-none">
+                Elite <span class="not-italic opacity-40">Network</span>
+              </h2>
+              <p class="text-h6 font-weight-medium opacity-70 leading-relaxed ma-0 max-w-sm mx-auto">
+                Join the sovereign circuit of institutional bidders and high-value asset collectors.
+              </p>
+              
+              <div class="mt-16 d-flex flex-column gap-4 align-center">
+                <div class="d-flex align-center gap-4 py-2 px-6 rounded-pill border border-white-opacity-10 bg-white-opacity-5 backdrop-blur-md">
+                  <v-icon icon="mdi-shield-crown" size="20" color="warning"></v-icon>
+                  <span class="text-[10px] font-weight-black tracking-[0.3em] uppercase">KYC-Ready Protocol</span>
+                </div>
+                <div class="d-flex align-center gap-4 py-2 px-6 rounded-pill border border-white-opacity-10 bg-white-opacity-5 backdrop-blur-md">
+                  <v-icon icon="mdi-earth" size="20"></v-icon>
+                  <span class="text-[10px] font-weight-black tracking-[0.3em] uppercase">Global Liquidity Pool</span>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <button 
-            type="submit" 
-            :disabled="loading"
-            class="w-full flex items-center justify-center gap-3 bg-indigo-600 text-white font-black py-5 rounded-2xl hover:bg-indigo-700 transition-all active:scale-95 shadow-xl shadow-indigo-500/20"
-          >
-            <span v-if="loading" class="w-5 h-5 border-4 border-white/30 border-t-white rounded-full animate-spin"></span>
-            {{ loading ? 'ENROLLING...' : 'INITIATE REGISTRATION' }}
-          </button>
-        </form>
-
-        <div class="mt-10 pt-10 border-t border-subtle-custom text-center">
-          <p class="text-sm font-medium text-muted-custom">
-            Already established? 
-            <router-link to="/login" class="text-indigo-600 dark:text-indigo-400 font-black hover:underline ml-1">Re-authorize</router-link>
-          </p>
-        </div>
-      </div>
-    </div>
-  </div>
+            <!-- Decorative HUD Arc -->
+            <div class="absolute top-n20 right-n20 w-80 h-80 rounded-circle border-4 border-white opacity-5"></div>
+          </v-col>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
+import { useRouter } from 'vue-router'
+import { useNotification } from '../services/notification'
 
-const router = useRouter()
-const authStore = useAuthStore()
 const username = ref('')
 const email = ref('')
 const password = ref('')
 const loading = ref(false)
-const error = ref('')
+const authStore = useAuthStore()
+const router = useRouter()
+const notification = useNotification()
 
 const handleRegister = async () => {
+  if (!email.value || !password.value || !username.value) return
   loading.value = true
-  error.value = ''
   try {
-    await authStore.register(email.value, password.value, username.value)
-    router.push('/dashboard')
+    const success = await authStore.register(email.value, password.value, username.value)
+    if (success) {
+      notification.add("Enrollment Successful • Welcome to the Indigo Circuit", "success")
+      router.push('/')
+    } else {
+      notification.add("Enrollment Rejected • Credentials Collision Detection", "error")
+    }
   } catch (err) {
-    error.value = 'Registration failed. Try a different identity.'
+    notification.add("System Dispatch Error • Please retry protocol", "error")
   } finally {
     loading.value = false
   }
 }
 </script>
+
+<style scoped>
+.animate-zoom {
+  animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.98) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.shadow-premium {
+  box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.4), 0 20px 40px -20px rgba(0, 0, 0, 0.5) !important;
+}
+
+.hud-overlay {
+  background: radial-gradient(circle at center, transparent 0%, rgba(var(--v-theme-primary), 0.15) 100%);
+  pointer-events: none;
+}
+
+.rotate-n3 {
+  transform: rotate(-3deg);
+}
+
+.z-10 { z-index: 10; }
+.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
+
+.v-card {
+  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+</style>

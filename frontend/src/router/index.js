@@ -6,6 +6,8 @@ import Dashboard from '../pages/Dashboard.vue'
 import AuctionList from '../pages/AuctionList.vue'
 import AuctionDetail from '../pages/AuctionDetail.vue'
 import Admin from '../pages/Admin.vue'
+import Profile from '../pages/Profile.vue'
+import Wallet from '../pages/Wallet.vue'
 
 const routes = [
   { path: '/', redirect: '/auctions' },
@@ -24,6 +26,18 @@ const routes = [
     component: Admin, 
     name: 'Admin',
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  { 
+    path: '/profile', 
+    component: Profile, 
+    name: 'Profile',
+    meta: { requiresAuth: true }
+  },
+  { 
+    path: '/wallet', 
+    component: Wallet, 
+    name: 'Wallet',
+    meta: { requiresAuth: true }
   },
 ]
 
