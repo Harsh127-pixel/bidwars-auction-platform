@@ -17,6 +17,8 @@ const pendingAuctions = ref([])
 const allUsers = ref([])
 const flaggedAuctions = ref([])
 const disputes = ref([])
+const proposals = ref([])
+const payments = ref([])
 const stats = ref({})
 const loading = ref(false)
 
@@ -44,6 +46,7 @@ const tabs = [
   { id:'overview',   label:'Overview'  },
   { id:'auctions',   label:'Auctions'  },
   { id:'proposals',  label:'Proposals' },
+  { id:'payments',   label:'Payments'  },
   { id:'flagged',    label:'Flagged'   },
   { id:'disputes',   label:'Disputes'  },
   { id:'users',      label:'Users'     },
@@ -53,13 +56,15 @@ const tabs = [
 const fetchData = async () => {
   loading.value = true
   try {
-    const [a, p, u, f, d, s] = await Promise.all([
+    const [a, p, u, f, d, s, prop, pay] = await Promise.all([
       api.get('/api/auctions'),
       api.get('/api/admin/pendingAuctions'),
       api.get('/api/admin/users'),
       api.get('/api/admin/flagged'),
       api.get('/api/admin/disputes'),
       api.get('/api/admin/analytics'),
+      api.get('/api/admin/proposals'),
+      api.get('/api/payments/history')
     ])
     auctions.value = a.data
     pendingAuctions.value = p.data
@@ -67,6 +72,8 @@ const fetchData = async () => {
     flaggedAuctions.value = f.data
     disputes.value = d.data.filter(d => d.status === 'open')
     stats.value = s.data
+    proposals.value = prop.data
+    payments.value = pay.data
   } catch (e) {
     notification.add('Failed to load admin data: ' + e.message, 'error')
   } finally { loading.value = false }
@@ -119,6 +126,16 @@ const processKYC = async (uid, status) => {
 
 const resolveDispute = async (id, resolution) => {
   try { await api.post(`/api/admin/disputes/${id}/resolve`, { status:'resolved', resolution }); notification.add('Resolved', 'success'); fetchData() }
+  catch { notification.add('Failed', 'error') }
+}
+
+const toggleUserStatus = async (userId, status) => {
+  try { await api.put(`/api/admin/users/${userId}/status`, { status }); notification.add(`User ${status}`, 'success'); fetchData() }
+  catch { notification.add('Failed', 'error') }
+}
+
+const approveProposal = async (proposalId, status, notes = '') => {
+  try { await api.put(`/api/admin/proposals/${proposalId}`, { status, adminNotes: notes }); notification.add(`Proposal ${status}`, 'success'); fetchData() }
   catch { notification.add('Failed', 'error') }
 }
 
@@ -355,6 +372,50 @@ onMounted(fetchData)
             </div>
           </div>
           <EmptyState v-else title="No open disputes" icon="◇" />
+        </div>
+      </div>
+
+      <!-- PROPOSALS -->
+      <div v-if="tab === 'proposals'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;border-bottom:1px solid var(--border)">
+            <div class="t-label">Proposals ({{ proposals.length }})</div>
+          </div>
+          <div v-if="proposals.length">
+            <div v-for="p in proposals" :key="p.id" class="dispute-row">
+              <div style="flex:1">
+                <div style="font-weight:600;margin-bottom:4px">{{ p.title }}</div>
+                <div style="font-size:14px;color:var(--text-3);margin-bottom:4px">{{ p.description }}</div>
+                <div style="font-size:12px;color:var(--text-3)">By {{ p.userId }} • {{ fmtDate(p.submittedAt) }}</div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="approveProposal(p.id, 'approved')">Approve</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="approveProposal(p.id, 'rejected')">Reject</button>
+              </div>
+            </div>
+          </div>
+          <EmptyState v-else title="No proposals" icon="📝" />
+        </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div v-if="tab === 'payments'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;border-bottom:1px solid var(--border)">
+            <div class="t-label">Payment History ({{ payments.length }})</div>
+          </div>
+          <table v-if="payments.length" class="data-table">
+            <thead><tr><th>Order ID</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+              <tr v-for="pay in payments" :key="pay.id">
+                <td class="t-mono">{{ pay.id }}</td>
+                <td>{{ fmt(pay.amount / 100) }}</td>
+                <td><span class="badge" :class="pay.status === 'paid' ? 'badge-live' : 'badge-muted'">{{ pay.status }}</span></td>
+                <td>{{ fmtDate(pay.createdAt) }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState v-else title="No payments" icon="💳" />
         </div>
       </div>
 

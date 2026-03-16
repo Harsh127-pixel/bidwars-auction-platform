@@ -1,289 +1,300 @@
-<template>
-  <div style="background-color: var(--bg-page); min-height: 100vh;">
-    <!-- Hero Banner -->
-    <div style="background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 32px 16px 32px;">
-      <div style="max-width: 1280px; margin: 0 auto;">
-        <div class="d-flex flex-wrap align-center justify-center justify-md-space-between animate-in text-center md:text-left" style="gap: 24px;">
-          <div class="w-full md:w-auto">
-            <h1 class="font-display" style="font-size: clamp(28px, 5vw, 48px); color: var(--text-primary); line-height: 1.1; margin: 0 0 12px;">
-              Live Auctions
-            </h1>
-            <p style="color: var(--text-secondary); font-size: 15px;" class="max-w-[500px] mx-auto md:mx-0">
-              Bid on authenticated items in real-time. Secure bidding with transparent pricing and instant updates.
-            </p>
-          </div>
-
-          <!-- Whale Leaderboard -->
-          <div v-if="whales.length > 0" class="d-none d-lg-flex align-center gap-6" style="background: var(--bg-elevated); padding: 12px 24px; border-radius: 100px; border: 1px solid var(--border-color);">
-            <div style="font-size: 11px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.1em;">Whale Leaderboard</div>
-            <div class="d-flex align-center gap-4">
-              <div v-for="(whale, index) in whales" :key="whale.username" class="d-flex align-center gap-2">
-                <v-avatar size="24" color="accent" class="text-[10px] font-weight-black">{{ index + 1 }}</v-avatar>
-                <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">{{ whale.username }}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="d-flex align-center hero-stats" style="gap: 16px; background: var(--bg-elevated); padding: 16px 20px; border-radius: 12px; border: 1px solid var(--border-color);">
-            <div>
-              <div style="font-size: 24px; font-family: 'DM Serif Display', serif; color: var(--text-primary); line-height: 1;">{{ auctions.length }}</div>
-              <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px;">Active Lots</div>
-            </div>
-            <div style="width: 1px; height: 36px; background: var(--border-color);"></div>
-            <div>
-              <div class="live-badge">
-                <span class="live-dot"></span>
-                Live Now
-              </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Bids updating</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Filters -->
-    <div style="background-color: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 0 16px; position: sticky; top: 64px; z-index: 50;">
-      <div style="max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 12px; overflow-x: auto; padding: 12px 0; scrollbar-width: none;">
-        <button
-          v-for="cat in categories"
-          :key="cat"
-          @click="categoryFilter = cat"
-          :style="{
-            padding: '7px 16px',
-            borderRadius: '20px',
-            border: categoryFilter === cat ? 'none' : '1px solid var(--border-color)',
-            background: categoryFilter === cat ? 'var(--accent)' : 'transparent',
-            color: categoryFilter === cat ? 'white' : 'var(--text-secondary)',
-            fontWeight: categoryFilter === cat ? '600' : '500',
-            fontSize: '13px',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-            transition: 'all 0.15s ease',
-            fontFamily: 'DM Sans, sans-serif'
-          }"
-        >{{ cat }}</button>
-
-        <div style="margin-left: auto; flex-shrink: 0;" class="w-full sm:w-auto mt-2 sm:mt-0">
-          <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 7px 14px;">
-            <v-icon size="16" style="color: var(--text-muted);">mdi-magnify</v-icon>
-            <input
-              v-model="searchQuery"
-              placeholder="Search auctions..."
-              style="border: none; background: transparent; color: var(--text-primary); font-size: 13px; outline: none; font-family: 'DM Sans', sans-serif;"
-              class="w-full sm:w-[180px]"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Grid -->
-    <div style="max-width: 1280px; margin: 0 auto; padding: 32px 16px;">
-      <!-- Loading -->
-      <div v-if="loading" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-        <div v-for="n in 6" :key="n" class="card-clean animate-in" :style="`animation-delay: ${n * 0.06}s`">
-          <v-skeleton-loader type="image" height="220" style="border-radius: 10px 10px 0 0; overflow: hidden;"></v-skeleton-loader>
-          <div style="padding: 20px;">
-            <v-skeleton-loader type="text, text, button" style="margin-top: 8px;"></v-skeleton-loader>
-          </div>
-        </div>
-      </div>
-
-      <!-- Results Count -->
-      <div v-if="!loading" style="margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
-        <p style="color: var(--text-muted); font-size: 14px;">
-          Showing <strong style="color: var(--text-primary);">{{ filteredAuctions.length }}</strong> results
-          <span v-if="searchQuery"> for "<strong style="color: var(--text-primary);">{{ searchQuery }}</strong>"</span>
-        </p>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 13px; color: var(--text-muted);">Sort by:</span>
-          <select v-model="sortBy" style="background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 12px; color: var(--text-primary); font-size: 13px; outline: none; cursor: pointer; font-family: 'DM Sans', sans-serif;">
-            <option value="newest">Ending Soon</option>
-            <option value="price_low">Price: Low to High</option>
-            <option value="price_high">Price: High to Low</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Auction Grid -->
-      <div v-if="!loading && filteredAuctions.length > 0" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-        <router-link
-          v-for="(auction, i) in filteredAuctions"
-          :key="auction.id"
-          :to="'/auction/' + auction.id"
-          class="auction-card card-clean animate-in"
-          :style="`animation-delay: ${i * 0.04}s; text-decoration: none; display: block; overflow: hidden;`"
-        >
-          <!-- Image -->
-          <div style="position: relative; aspect-ratio: 16/10; overflow: hidden; background: var(--bg-subtle);">
-            <v-img :src="auction.imageUrl || placeholderImage" cover style="height: 100%;" :aspect-ratio="16/10">
-              <template v-slot:placeholder>
-                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: var(--bg-subtle);">
-                  <v-icon size="32" style="color: var(--text-placeholder);">mdi-image-outline</v-icon>
-                </div>
-              </template>
-            </v-img>
-
-            <!-- Category tag -->
-            <div style="position: absolute; top: 12px; left: 12px;">
-              <span style="background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color: white; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 20px; letter-spacing: 0.04em;">
-                {{ auction.category }}
-              </span>
-            </div>
-
-            <!-- Live badge -->
-            <div style="position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end;">
-              <v-btn
-                icon
-                size="x-small"
-                :color="isWatched(auction.id) ? 'error' : 'white'"
-                style="background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); margin-bottom: 4px;"
-                @click.prevent="toggleWatchlist(auction.id)"
-              >
-                <v-icon size="16">{{ isWatched(auction.id) ? 'mdi-heart' : 'mdi-heart-outline' }}</v-icon>
-              </v-btn>
-              <div class="live-badge" style="background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color: #4ade80;">
-                <span class="live-dot" style="background: #4ade80;"></span>
-                Live
-              </div>
-              <div v-if="auction.buyItNow && (!auction.bidCount || auction.bidCount === 0)" style="background: var(--accent); color: white; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
-                Buy It Now
-              </div>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div style="padding: 18px 20px 20px;">
-            <h3 style="font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text-primary); margin: 0 0 6px; line-height: 1.3; font-weight: 400;">{{ auction.title }}</h3>
-            <p style="color: var(--text-muted); font-size: 13px; margin: 0 0 16px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{{ auction.description }}</p>
-
-            <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;">
-              <div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px;">Current Bid</div>
-                <div class="bid-amount" style="font-size: 22px; color: var(--text-primary); line-height: 1;">
-                  ₹{{ (auction.highestBid || auction.minBid).toLocaleString() }}
-                </div>
-              </div>
-              <div style="background: var(--accent); color: white; padding: 9px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; transition: background 0.15s ease;" class="bid-now-btn">
-                Bid Now →
-              </div>
-            </div>
-          </div>
-        </router-link>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else-if="!loading" style="padding: 80px 20px; text-align: center;">
-        <div style="width: 72px; height: 72px; background: var(--bg-subtle); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
-          <v-icon size="32" style="color: var(--text-muted);">mdi-gavel</v-icon>
-        </div>
-        <h3 class="font-display" style="font-size: 24px; color: var(--text-primary); margin: 0 0 8px;">No auctions found</h3>
-        <p style="color: var(--text-muted); font-size: 15px; margin: 0 0 24px;">Try adjusting your search or category filter.</p>
-        <button @click="categoryFilter = 'All'; searchQuery = ''" style="background: var(--accent); color: white; border: none; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif;">
-          Clear Filters
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
+<!-- FILE: frontend/src/pages/AuctionList.vue -->
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../services/api'
 import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
+import AuctionCard from '../components/AuctionCard.vue'
 
-const authStore = useAuthStore()
+const authStore    = useAuthStore()
 const notification = useNotification()
-const auctions = ref([])
+const auctions     = ref([])
 const watchlistIds = ref([])
-const whales = ref([])
-const loading = ref(true)
-const categoryFilter = ref('All')
-const searchQuery = ref('')
-const sortBy = ref('newest')
-const categories = ['All', 'Art', 'Watches', 'Vehicles', 'Electronics', 'Collectibles']
-const placeholderImage = 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=800'
+const loading      = ref(true)
+const search       = ref('')
+const category     = ref('All')
+const sortBy       = ref('newest')
+const viewMode     = ref('grid') // grid | list
 
-const fetchLeaderboard = async () => {
-  try {
-    const res = await api.get('/api/leaderboard')
-    whales.value = res.data
-  } catch (err) {
-    console.error(err)
-  }
-}
+const categories = ['All', 'Art', 'Watches', 'Vehicles', 'Electronics', 'Collectibles']
 
 const fetchAuctions = async () => {
   try {
     const res = await api.get('/api/auctions')
     auctions.value = res.data
-  } catch (err) {
-    console.error(err)
-  } finally {
-    loading.value = false
-  }
+  } catch { notification.add('Failed to load auctions', 'error') }
+  finally { loading.value = false }
 }
-
-const filteredAuctions = computed(() => {
-  let list = auctions.value.filter(a => {
-    const matchCat = categoryFilter.value === 'All' || a.category === categoryFilter.value
-    const matchSearch = !searchQuery.value ||
-      a.title.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      a.description.toLowerCase().includes(searchQuery.value.toLowerCase())
-    return matchCat && matchSearch
-  })
-  if (sortBy.value === 'price_low') list = [...list].sort((a, b) => (a.highestBid || a.minBid) - (b.highestBid || b.minBid))
-  if (sortBy.value === 'price_high') list = [...list].sort((a, b) => (b.highestBid || b.minBid) - (a.highestBid || a.minBid))
-  return list
-})
 
 const fetchWatchlist = async () => {
   if (!authStore.user) return
   try {
     const res = await api.get('/api/watchlist')
     watchlistIds.value = res.data.map(a => a.id)
-  } catch (err) {
-    console.error(err)
-  }
+  } catch {}
 }
 
-const toggleWatchlist = async (id) => {
-  if (!authStore.user) return notification.add('Login to track auctions', 'info')
+const toggleWatch = async (id) => {
+  if (!authStore.user) return notification.add('Sign in to use watchlist', 'info')
   try {
     const res = await api.post(`/api/watchlist/toggle/${id}`)
-    if (res.data.watched) {
-      watchlistIds.value.push(id)
-      notification.add('Added to Watchlist', 'success')
-    } else {
-      watchlistIds.value = watchlistIds.value.filter(wid => wid !== id)
-      notification.add('Removed from Watchlist', 'info')
-    }
-  } catch {
-    notification.add('Watchlist action failed', 'error')
-  }
+    if (res.data.watched) watchlistIds.value.push(id)
+    else watchlistIds.value = watchlistIds.value.filter(w => w !== id)
+  } catch {}
 }
 
-const isWatched = (id) => watchlistIds.value.includes(id)
-
-onMounted(async () => {
-  await fetchAuctions()
-  fetchLeaderboard()
-  if (authStore.user) fetchWatchlist()
+const filtered = computed(() => {
+  let list = auctions.value.filter(a => {
+    const matchCat    = category.value === 'All' || a.category === category.value
+    const q           = search.value.toLowerCase()
+    const matchSearch = !q || a.title.toLowerCase().includes(q) || (a.description || '').toLowerCase().includes(q)
+    return matchCat && matchSearch
+  })
+  if (sortBy.value === 'price_asc')  list = [...list].sort((a,b) => (a.highestBid||a.minBid) - (b.highestBid||b.minBid))
+  if (sortBy.value === 'price_desc') list = [...list].sort((a,b) => (b.highestBid||b.minBid) - (a.highestBid||a.minBid))
+  return list
 })
+
+const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
+
+onMounted(() => { fetchAuctions(); fetchWatchlist() })
 </script>
 
+<template>
+  <div class="list-page">
+
+    <!-- HERO BAR -->
+    <div class="list-hero">
+      <div class="list-hero__glow"></div>
+      <div class="page-wrap list-hero__inner">
+        <div>
+          <div class="hero-eyebrow">
+            <span class="live-dot"></span> Live Now
+          </div>
+          <h1 class="hero-title">Auctions</h1>
+        </div>
+        <div class="hero-meta">
+          <div class="hero-stat">
+            <div class="hero-stat__val">{{ auctions.length }}</div>
+            <div class="hero-stat__label">Active Lots</div>
+          </div>
+          <div class="hero-stat__div"></div>
+          <div class="hero-stat">
+            <div class="hero-stat__val">{{ fmt(auctions.reduce((s,a) => s + (a.highestBid||a.minBid||0), 0)) }}</div>
+            <div class="hero-stat__label">Total Value</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-wrap list-body">
+
+      <!-- FILTER BAR -->
+      <div class="filter-bar fade-up">
+        <!-- Category pills -->
+        <div class="cat-pills">
+          <button v-for="cat in categories" :key="cat"
+            class="cat-pill" :class="{'cat-pill--on': category === cat}"
+            @click="category = cat">
+            {{ cat }}
+          </button>
+        </div>
+        <!-- Controls -->
+        <div class="filter-controls">
+          <div class="search-wrap">
+            <span class="search-icon">⌕</span>
+            <input v-model="search" type="text" placeholder="Search lots…" class="search-input" />
+            <button v-if="search" class="search-clear" @click="search = ''">✕</button>
+          </div>
+          <select v-model="sortBy" class="sort-select">
+            <option value="newest">Newest</option>
+            <option value="price_asc">Price ↑</option>
+            <option value="price_desc">Price ↓</option>
+          </select>
+          <div class="view-toggle">
+            <button class="view-btn" :class="{'view-btn--on': viewMode==='grid'}" @click="viewMode='grid'" title="Grid">⊞</button>
+            <button class="view-btn" :class="{'view-btn--on': viewMode==='list'}" @click="viewMode='list'" title="List">☰</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULT COUNT -->
+      <div class="result-count fade-up">
+        <span>{{ filtered.length }} lot{{ filtered.length !== 1 ? 's' : '' }}</span>
+        <span v-if="search" class="result-query"> matching "{{ search }}"</span>
+        <button v-if="search || category !== 'All'" class="clear-btn" @click="search=''; category='All'">
+          Clear filters ✕
+        </button>
+      </div>
+
+      <!-- SKELETON -->
+      <div v-if="loading" class="auction-grid">
+        <div v-for="n in 6" :key="n" class="skel-card" :style="`animation-delay:${n*0.06}s`"></div>
+      </div>
+
+      <!-- GRID / LIST -->
+      <TransitionGroup v-else-if="filtered.length"
+        :class="viewMode === 'grid' ? 'auction-grid' : 'auction-list'"
+        name="card" tag="div">
+        <AuctionCard
+          v-for="(auction, i) in filtered"
+          :key="auction.id"
+          :auction="auction"
+          :watched="watchlistIds.includes(auction.id)"
+          :style="`animation-delay:${i * 0.04}s`"
+          class="fade-up"
+          @toggle-watch="toggleWatch"
+        />
+      </TransitionGroup>
+
+      <!-- EMPTY -->
+      <div v-else class="empty-state">
+        <div class="empty-state__icon">◈</div>
+        <div class="empty-state__title">No lots found</div>
+        <div class="empty-state__sub">Try adjusting your search or category filter</div>
+        <button class="btn-clear" @click="category='All'; search=''">Clear all filters</button>
+      </div>
+
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.auction-card:hover .bid-now-btn {
-  background: var(--accent-hover) !important;
+.list-page { min-height: 100vh; background: var(--bg); }
+
+/* HERO */
+.list-hero { position: relative; overflow: hidden; padding: 40px 0 44px; }
+.list-hero__glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 60% 100% at 5% 50%, rgba(251,146,60,0.07) 0%, transparent 60%);
 }
-.auction-card {
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  border-radius: 12px !important;
+.list-hero__inner {
+  position: relative; display: flex; align-items: center;
+  justify-content: space-between; gap: 24px; flex-wrap: wrap;
 }
-.auction-card:hover {
-  box-shadow: var(--shadow-md) !important;
-  transform: translateY(-2px);
+.hero-eyebrow {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--orange); margin-bottom: 10px;
+}
+.hero-title {
+  font-family: var(--font-display); font-size: clamp(32px, 5vw, 56px);
+  font-weight: 600; color: var(--text); line-height: 1;
+  animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+.hero-meta { display: flex; align-items: center; gap: 24px; }
+.hero-stat__val { font-family: var(--font-display); font-size: 28px; color: var(--text); line-height: 1; }
+.hero-stat__label { font-size: 11px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
+.hero-stat__div { width: 1px; height: 40px; background: var(--border); }
+
+/* BODY */
+.list-body { padding-bottom: 64px; }
+
+/* FILTER BAR */
+.filter-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 16px; margin-bottom: 16px; flex-wrap: wrap;
+}
+.cat-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.cat-pill {
+  padding: 6px 16px; border-radius: 20px; border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+}
+.cat-pill:hover { background: var(--bg-hover); color: var(--text); }
+.cat-pill--on { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+
+.filter-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.search-wrap { position: relative; display: flex; align-items: center; }
+.search-icon { position: absolute; left: 12px; color: var(--text-3); font-size: 16px; pointer-events: none; }
+.search-input {
+  padding: 8px 36px 8px 34px; background: var(--bg-card);
+  border: 1px solid var(--border-md); border-radius: 10px;
+  color: var(--text); font-family: var(--font-body); font-size: 14px;
+  outline: none; width: 200px; transition: border-color 0.15s;
+}
+.search-input::placeholder { color: var(--text-3); }
+.search-input:focus { border-color: var(--orange); }
+.search-clear {
+  position: absolute; right: 10px; background: none; border: none;
+  color: var(--text-3); font-size: 12px; cursor: pointer; padding: 2px;
+}
+.sort-select {
+  padding: 8px 14px; background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 10px; color: var(--text); font-family: var(--font-body); font-size: 14px;
+  outline: none; cursor: pointer;
+}
+.view-toggle { display: flex; border: 1px solid var(--border-md); border-radius: 10px; overflow: hidden; }
+.view-btn {
+  width: 36px; height: 36px; background: var(--bg-card); border: none;
+  color: var(--text-3); font-size: 16px; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.view-btn:hover { background: var(--bg-hover); color: var(--text); }
+.view-btn--on { background: var(--orange-dim); color: var(--orange); }
+
+/* RESULT COUNT */
+.result-count {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text-3); margin-bottom: 24px;
+}
+.result-query { color: var(--text-2); }
+.clear-btn {
+  background: none; border: none; color: var(--orange); font-family: var(--font-body);
+  font-size: 12px; font-weight: 600; cursor: pointer; padding: 0;
+}
+.clear-btn:hover { color: #f97316; }
+
+/* GRID */
+.auction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+/* LIST MODE */
+.auction-list { display: flex; flex-direction: column; gap: 12px; }
+.auction-list :deep(.auction-card) { display: flex; flex-direction: row; }
+.auction-list :deep(.auction-card__image) { width: 200px; flex-shrink: 0; aspect-ratio: auto; height: 140px; }
+.auction-list :deep(.auction-card__body) { flex: 1; }
+
+/* SKELETON */
+.skel-card {
+  height: 340px; background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; animation: shimmer 1.6s ease infinite;
+}
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* Card transition */
+.card-enter-active { transition: all 0.3s ease; }
+.card-enter-from   { opacity: 0; transform: translateY(12px); }
+
+/* EMPTY */
+.empty-state { padding: 80px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.empty-state__icon  { font-size: 40px; opacity: 0.2; }
+.empty-state__title { font-family: var(--font-display); font-size: 22px; color: var(--text-2); }
+.empty-state__sub   { font-size: 14px; color: var(--text-3); }
+.btn-clear {
+  margin-top: 16px; padding: 10px 24px;
+  background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.3);
+  border-radius: 10px; color: var(--orange); font-family: var(--font-body);
+  font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.btn-clear:hover { background: var(--orange); color: #fff; }
+
+@media (max-width: 640px) {
+  .hero-meta { display: none; }
+  .filter-bar { flex-direction: column; align-items: flex-start; }
+  .filter-controls { width: 100%; }
+  .search-input { width: 100%; }
+  .view-toggle { display: none; }
+  .auction-list :deep(.auction-card) { flex-direction: column; }
+  .auction-list :deep(.auction-card__image) { width: 100%; height: auto; aspect-ratio: 16/10; }
 }
 </style>

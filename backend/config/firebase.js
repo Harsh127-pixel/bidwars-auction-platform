@@ -33,6 +33,14 @@ if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   })
+  // Check Firebase connection by listing collections (async)
+  admin.firestore().listCollections()
+    .then(() => {
+      console.log("[Firebase] Connected to Firestore successfully!")
+    })
+    .catch((err) => {
+      console.error("[Firebase] Connection to Firestore failed:", err.message)
+    })
 }
 
 const db = admin.firestore()

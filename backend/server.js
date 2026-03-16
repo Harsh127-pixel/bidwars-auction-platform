@@ -9,18 +9,29 @@ const db = require("./config/firebase")
 
 const app = express()
 
-// CORS — allow the frontend origin explicitly
+
+// CORS — allow Render, Vercel, gaurangjadoun.in, and localhost (no port in prod)
 const allowedOrigins = [
-  process.env.CLIENT_ORIGIN || "http://localhost:5173",
-  "http://localhost:5173",
-  "http://localhost:3000"
+  "https://bidwars-auction-platform.onrender.com",
+  "https://bidwars-auction-platform.vercel.app",
+  "https://gaurangjadoun.in",
+  "http://localhost",
+  "https://localhost",
+  "http://127.0.0.1",
+  "https://127.0.0.1"
 ]
 
 app.use(cors({
   origin: (origin, callback) => {
     // Allow requests with no origin (Postman, curl, server-to-server)
     if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) return callback(null, true)
+    // Allow all localhost in dev, and allow prod domains
+    if (
+      allowedOrigins.some(o => origin && origin.startsWith(o)) ||
+      (process.env.NODE_ENV !== "production" && origin && origin.startsWith("http://localhost"))
+    ) {
+      return callback(null, true)
+    }
     callback(new Error(`CORS blocked for origin: ${origin}`))
   },
   credentials: true
@@ -34,7 +45,16 @@ app.get("/api/health", (req, res) => {
 })
 
 const auctionRoutes = require("./routes/auctionRoutes")
+const userRoutes = require("./routes/userRoutes")
+const adminRoutes = require("./routes/adminRoutes")
+const paymentRoutes = require("./routes/paymentRoutes")
+const proposalRoutes = require("./routes/proposalRoutes")
+
 app.use("/api", auctionRoutes)
+app.use("/api/users", userRoutes)
+app.use("/api/admin", adminRoutes)
+app.use("/api/payments", paymentRoutes)
+app.use("/api/proposals", proposalRoutes)
 
 const server = http.createServer(app)
 

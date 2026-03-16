@@ -156,19 +156,42 @@ onMounted(() => {
             style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Dashboard</v-btn>
           <v-btn v-if="authStore.user" to="/wallet" variant="text" class="rounded-lg px-4" height="38"
             style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Wallet</v-btn>
-          <v-btn v-if="authStore.user" to="/profile" variant="text" class="rounded-lg px-4" height="38"
-            style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Profile</v-btn>
 
-          <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 8px;"></div>
+          <v-menu v-if="authStore.user" :close-on-content-click="false">
+            <template v-slot:activator="{ props }">
+              <v-btn v-bind="props" variant="text" class="rounded-lg px-4" height="38"
+                style="color: var(--text-primary); font-weight: 600; font-size: 15px;">
+                <v-icon start size="16">mdi-account-circle</v-icon>
+                {{ authStore.user?.username }}
+                <v-icon end size="14">mdi-chevron-down</v-icon>
+              </v-btn>
+            </template>
+            <v-list width="200" class="rounded-lg pa-2"
+              style="background: var(--bg-card); border: 1px solid var(--border-color);">
+              <v-list-item to="/profile" class="rounded-lg mb-1">
+                <template v-slot:prepend>
+                  <v-icon size="16">mdi-account-outline</v-icon>
+                </template>
+                <v-list-item-title style="font-size: 14px;">My Profile</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="toggleDark" class="rounded-lg mb-1">
+                <template v-slot:prepend>
+                  <v-icon size="16">{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+                </template>
+                <v-list-item-title style="font-size: 14px;">{{ isDark ? 'Light Mode' : 'Dark Mode' }}</v-list-item-title>
+              </v-list-item>
+              <v-list-item @click="handleLogout" class="rounded-lg">
+                <template v-slot:prepend>
+                  <v-icon size="16">mdi-logout</v-icon>
+                </template>
+                <v-list-item-title style="font-size: 14px;">Sign Out</v-list-item-title>
+              </v-list-item>
+            </v-list>
+          </v-menu>
 
           <v-btn v-if="authStore.role === 'admin'" to="/admin" variant="tonal" class="rounded-lg px-4" height="38"
             style="background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13px;"
             prepend-icon="mdi-shield-crown-outline">Admin</v-btn>
-
-          <v-btn icon @click="toggleDark" variant="text" class="rounded-lg" size="38"
-            style="color: var(--text-muted);">
-            <v-icon size="18">{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
-          </v-btn>
 
           <template v-if="!authStore.user">
             <v-btn to="/login" variant="outlined" class="rounded-lg px-5 btn-outline" height="38"
@@ -178,7 +201,7 @@ onMounted(() => {
           </template>
         </div>
 
-        <!-- Notification bell + user chip (logged in) -->
+        <!-- Notification bell (logged in) -->
         <div v-if="authStore.user" class="d-flex align-center ml-2">
           <v-menu :close-on-content-click="false">
             <template v-slot:activator="{ props }">
@@ -216,17 +239,6 @@ onMounted(() => {
               </v-list-item>
             </v-list>
           </v-menu>
-
-          <v-btn variant="tonal" class="rounded-lg px-3 ml-2 d-none d-lg-flex" height="38"
-            style="background: var(--bg-subtle); color: var(--text-primary); font-weight: 500;" @click="handleLogout">
-            <v-avatar size="24"
-              style="background: var(--accent); margin-right: 8px; border-radius: 6px;">
-              <span style="color: white; font-size: 11px; font-weight: 700;">
-                {{ (authStore.user?.username || 'U')[0].toUpperCase() }}
-              </span>
-            </v-avatar>
-            {{ authStore.user?.username }}
-          </v-btn>
         </div>
 
         <!-- Mobile hamburger -->

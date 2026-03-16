@@ -1,0 +1,11 @@
+# Render Static Site configuration for Vue/Vite frontend
+services:
+  - type: web
+    name: bidwars-frontend
+    env: static
+    buildCommand: npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://bidwars-auction-platform.onrender.com/api
+      # Add other VITE_ env vars as needed

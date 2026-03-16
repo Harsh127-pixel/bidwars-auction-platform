@@ -3,8 +3,7 @@ const admin = require("firebase-admin")
 const router = express.Router()
 const db = require("../config/firebase")
 const { generateListingDescription } = require("../services/aiListing")
-const protect = require("../middleware/authMiddleware")
-const isAdmin = require("../middleware/adminMiddleware")
+const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware")
 const ledgerService = require("../services/ledger")
 const reportService = require("../services/ReportService")
 const pdfService = require("../services/pdfService")
@@ -39,7 +38,7 @@ router.get("/auctions", async (req, res) => {
 })
 
 // Admin Only: Fetch all users
-router.get("/admin/users", protect, isAdmin, async (req, res) => {
+router.get("/admin/users", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const snapshot = await db.collection("users").get()
     const users = snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() }))
@@ -255,7 +254,7 @@ router.post("/auctions/buy-it-now/:id", protect, async (req, res) => {
 })
 
 // Admin Only: Update Auction
-router.put("/auctions/:id", protect, isAdmin, async (req, res) => {
+router.put("/auctions/:id", verifyToken, verifyAdmin, async (req, res) => {
   const { title, description, category, minBid, imageUrl, endTime, buyItNow } = req.body
   const auctionId = req.params.id
   try {

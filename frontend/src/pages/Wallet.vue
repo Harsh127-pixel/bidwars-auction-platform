@@ -1,9 +1,6 @@
 <!-- FILE: frontend/src/pages/Wallet.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../store/auth'
-import { useNotification } from '../services/notification'
-import api from '../services/api'
+import PaymentForm from '../components/PaymentForm.vue'
 
 const authStore = useAuthStore()
 const notification = useNotification()
@@ -130,6 +127,11 @@ onMounted(fetchHistory)
           <div class="tile-val">{{ tile.val }}</div>
           <div class="tile-label">{{ tile.label }}</div>
         </div>
+      </div>
+
+      <!-- PAYMENT FORM -->
+      <div class="payment-section fade-up fade-up-1">
+        <PaymentForm @payment-success="fetchHistory" />
       </div>
 
       <!-- HISTORY -->

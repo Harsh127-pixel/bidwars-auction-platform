@@ -1,7 +1,7 @@
 const admin = require("firebase-admin");
 const db = require("../config/firebase");
 
-const protect = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -35,4 +35,12 @@ const protect = async (req, res, next) => {
   }
 };
 
-module.exports = protect;
+const verifyAdmin = (req, res, next) => {
+  if (req.user && req.user.role === "admin") {
+    next();
+  } else {
+    res.status(403).json({ message: "Access denied - Admin only" });
+  }
+};
+
+module.exports = { verifyToken, verifyAdmin };

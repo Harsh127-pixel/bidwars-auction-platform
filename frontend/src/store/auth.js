@@ -5,7 +5,10 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged,
+  setPersistence,
+  browserSessionPersistence,
+  browserLocalPersistence
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore'
 
@@ -65,7 +68,8 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async login(email, password) {
+    async login(email, password, rememberMe = false) {
+      await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
       const credential = await signInWithEmailAndPassword(auth, email, password)
       // _attachUserListener will be called automatically via onAuthStateChanged
       return true

@@ -38,10 +38,38 @@ const tabs = [
 const submitKYC = async () => {
   kycLoading.value = true
   try {
-    await authStore.requestKYC()
-    notification.add('Verification submitted. Admin will review shortly.', 'success')
-  } catch { notification.add('Submission failed.', 'error') }
+    await api.post('/api/users/kyc/initiate')
+    notification.add('KYC initiated. Check back later.', 'success')
+  } catch { notification.add('KYC initiation failed.', 'error') }
   finally { kycLoading.value = false }
+}
+
+const cancelKYC = async () => {
+  try {
+    await api.post('/api/users/kyc/cancel')
+    notification.add('KYC cancelled.', 'success')
+  } catch { notification.add('Failed to cancel KYC.', 'error') }
+}
+
+const subscribe = async (plan) => {
+  try {
+    await api.post('/api/users/subscription', { plan, amount: 1000 }) // Example amount
+    notification.add(`Subscribed to ${plan} plan!`, 'success')
+  } catch { notification.add('Subscription failed.', 'error') }
+}
+
+const unsubscribe = async () => {
+  try {
+    await api.delete('/api/users/subscription')
+    notification.add('Unsubscribed successfully.', 'success')
+  } catch { notification.add('Failed to unsubscribe.', 'error') }
+}
+
+const logout = async () => {
+  try {
+    await authStore.logout()
+    notification.add('Logged out successfully.', 'success')
+  } catch { notification.add('Logout failed.', 'error') }
 }
 
 const confirmReceipt = async (id) => {
@@ -180,6 +208,36 @@ onMounted(loadData)
               <div style="font-size:40px;margin-bottom:12px">🛡</div>
               <div class="kyc-prompt__title">Identity Verified</div>
               <div class="kyc-prompt__sub">You have full access to all auction categories.</div>
+            </div>
+
+            <!-- SUBSCRIPTION & ACTIONS -->
+            <div class="subscription-card">
+              <div class="card-section-label">Subscription</div>
+              <div v-if="authStore.user?.subscriptionStatus === 'active'" class="subscription-active">
+                <div class="subscription-title">Premium Member</div>
+                <div class="subscription-sub">Enjoy enhanced features and priority support</div>
+                <button class="btn-cancel-sub" @click="unsubscribe">Cancel Subscription</button>
+              </div>
+              <div v-else class="subscription-plans">
+                <div class="plan-option" @click="subscribe('monthly')">
+                  <div class="plan-name">Monthly Plan</div>
+                  <div class="plan-price">₹999/month</div>
+                </div>
+                <div class="plan-option" @click="subscribe('yearly')">
+                  <div class="plan-name">Yearly Plan</div>
+                  <div class="plan-price">₹9999/year</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="actions-card">
+              <div class="card-section-label">Account Actions</div>
+              <button v-if="authStore.user?.kycStatus === 'pending'" class="btn-action-secondary" @click="cancelKYC">
+                Cancel KYC
+              </button>
+              <button class="btn-action-secondary" @click="logout">
+                Logout
+              </button>
             </div>
           </div>
         </div>
