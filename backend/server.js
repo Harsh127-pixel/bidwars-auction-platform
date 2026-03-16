@@ -24,6 +24,8 @@ const io = new Server(server,{
   cors:{origin:"*"}
 })
 
+app.set('io', io)
+
 require("./sockets/bidding")(io, db)
 
 const PORT = process.env.PORT || 5000

@@ -99,7 +99,7 @@
                   Bidders with Elite Verification status gain prioritized access to high-stakes tenders and government repossessions. Link your institutional credentials (PAN/GST) to unlock this tier.
                 </p>
               </div>
-              <v-btn v-if="!authStore.user?.isVerified" color="primary" class="rounded-pill px-10 shadow-lg h-56" elevation="12">LINK CREDENTIALS</v-btn>
+              <v-btn v-if="!authStore.user?.isVerified" color="primary" class="rounded-pill px-10 shadow-lg h-56" elevation="12" @click="handleVerify">LINK CREDENTIALS</v-btn>
               <v-icon v-else icon="mdi-check-decagram" color="success" size="48"></v-icon>
             </div>
           </v-card>
@@ -167,6 +167,15 @@ const formatJoinDate = (date) => {
   if (!date) return 'Q1 2026'
   const d = new Date(date)
   return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+const handleVerify = async () => {
+  try {
+    await authStore.verifyKYC()
+    notification.add("Institutional credentials linked successfully", "success")
+  } catch (err) {
+    notification.add("Verification failed. Please try again.", "error")
+  }
 }
 
 onMounted(() => {

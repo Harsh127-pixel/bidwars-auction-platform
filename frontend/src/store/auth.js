@@ -58,6 +58,15 @@ export const useAuthStore = defineStore('auth', {
         }
       })
     },
+    async verifyKYC() {
+      if (!this.user) return false
+      const { updateDoc, doc: fireDoc } = await import('firebase/firestore')
+      await updateDoc(fireDoc(db, 'users', this.user.uid), {
+        isVerified: true
+      })
+      // Local state will be updated via onSnapshot listener in fetchUserData
+      return true
+    },
     async getToken() {
       if (!auth.currentUser) return null
       return await auth.currentUser.getIdToken()

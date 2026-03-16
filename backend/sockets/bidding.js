@@ -32,6 +32,10 @@ module.exports = (io, db) => {
         throw "Your account role does not permit active bidding."
       }
 
+      if (!userDataCheck.isVerified && userDataCheck.role !== 'admin') {
+        throw "Access Denied: Level 3 Identity Verification (KYC) required for bidding."
+      }
+
       const ledgerService = require('../services/ledger');
 
       await db.runTransaction(async (transaction) => {

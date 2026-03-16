@@ -144,6 +144,15 @@ router.post("/admin/closeAuction", protect, isAdmin, async (req, res) => {
     }
 
     await auctionRef.update({ status: "closed", endTime: new Date() })
+    
+    // Notify all clients that bidding has stopped for this auction
+    const io = req.app.get('io')
+    io.emit('biddingStopped', { 
+      auctionId, 
+      status: 'closed', 
+      winner: auctionData.highestBidder 
+    })
+
     res.json({ success: true, winner: auctionData.highestBidder || 'None' })
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -153,7 +162,13 @@ router.post("/admin/closeAuction", protect, isAdmin, async (req, res) => {
 // Admin Only: Delete Auction
 router.delete("/auctions/:id", protect, isAdmin, async (req, res) => {
   try {
-    await db.collection("auctions").doc(req.params.id).delete()
+    const auctionId = req.params.id
+    await db.collection("auctions").doc(auctionId).delete()
+    
+    // Notify all clients
+    const io = req.app.get('io')
+    io.emit('biddingStopped', { auctionId, status: 'deleted' })
+
     res.json({ success: true, message: "Asset liquidated" })
   } catch (err) {
     res.status(500).json({ error: err.message })

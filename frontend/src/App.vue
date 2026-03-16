@@ -1,24 +1,19 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useAuthStore } from './store/auth'
-import { useRouter } from 'vue-router'
-import { useTheme } from 'vuetify'
+import { useRouter, useRoute } from 'vue-router'
+import { useNotification } from './services/notification'
 import NotificationToast from './components/NotificationToast.vue'
 
 const authStore = useAuthStore()
+const notification = useNotification()
 const router = useRouter()
-const theme = useTheme()
+const route = useRoute()
 
 const isDark = ref(localStorage.getItem('theme') === 'dark')
 const drawer = ref(false)
 
-const toggleDark = () => {
-  isDark.value = !isDark.value
-}
-
-// Global theme sync
 watch(isDark, (val) => {
-  theme.global.name.value = val ? 'dark' : 'light'
   if (val) {
     document.documentElement.classList.add('dark')
   } else {
@@ -27,161 +22,163 @@ watch(isDark, (val) => {
   localStorage.setItem('theme', val ? 'dark' : 'light')
 }, { immediate: true })
 
+const toggleDark = () => { isDark.value = !isDark.value }
+
 const handleLogout = async () => {
-  if (confirm("Terminate secure session?")) {
-    await authStore.logout()
-    router.push('/login')
-  }
+  await authStore.logout()
+  router.push('/login')
 }
+
+const isAuthPage = () => ['Login', 'Register'].includes(route.name)
 
 onMounted(() => {
   authStore.init()
+  
+  // High-level system notifications
+  import('./services/socket').then(({ default: socket }) => {
+    socket.on('biddingStopped', (data) => {
+      if (data.status === 'closed') {
+        notification.add(`Bidding Floor: Auction ${data.auctionId.slice(0,8)} has reached its final settlement.`, 'info')
+      } else if (data.status === 'deleted') {
+        notification.add(`System Alert: Asset ${data.auctionId.slice(0,8)} has been withdrawn from liquidation.`, 'warning')
+      }
+    })
+  })
 })
 </script>
 
 <template>
-  <v-app class="institutional-shell">
-    <!-- Luxury HUD Layer -->
-    <div class="fixed inset-0 hud-overlay z-0 opacity-40"></div>
-
-    <!-- Mobile Drawer Engine -->
-    <v-navigation-drawer
-      v-model="drawer"
-      temporary
-      location="right"
-      class="glass border-l border-subtle"
-      width="320"
-    >
-      <div class="pa-12 d-flex flex-column h-100">
-        <div class="mb-12">
-          <p class="text-[9px] font-weight-black text-primary tracking-[0.4em] uppercase mb-2">Protocol</p>
-          <h3 class="text-h4 font-weight-black italic tracking-tighter">Mobile <span class="text-primary">Command</span></h3>
+  <v-app :theme="isDark ? 'dark' : 'light'" :class="isDark ? 'dark' : ''">
+    <!-- Mobile Drawer -->
+    <v-navigation-drawer v-model="drawer" temporary location="right" width="300" style="background-color: var(--bg-card); border-left: 1px solid var(--border-color);">
+      <div class="pa-5">
+        <div class="d-flex align-center justify-space-between mb-6">
+          <div class="d-flex align-center gap-2">
+            <span style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary);">BidWars</span>
+          </div>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="drawer = false" style="color: var(--text-muted);"></v-btn>
         </div>
 
-        <div class="d-flex flex-column gap-2 mb-auto">
-          <v-btn to="/auctions" variant="text" block class="justify-start rounded-xl px-6 h-56" active-color="primary" @click="drawer = false">
-            <v-icon start icon="mdi-gavel" class="mr-4"></v-icon>
-            Market Tenders
+        <div class="d-flex flex-column gap-1">
+          <v-btn to="/auctions" variant="text" block class="justify-start rounded-lg px-4" height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+            <v-icon start size="18">mdi-gavel</v-icon>
+            Browse Auctions
           </v-btn>
-          <v-btn v-if="authStore.role === 'bidder'" to="/dashboard" variant="text" block class="justify-start rounded-xl px-6 h-56" active-color="primary" @click="drawer = false">
-            <v-icon start icon="mdi-view-dashboard-outline" class="mr-4"></v-icon>
-            Portfolio
+          <v-btn v-if="authStore.role === 'bidder'" to="/dashboard" variant="text" block class="justify-start rounded-lg px-4" height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+            <v-icon start size="18">mdi-view-dashboard-outline</v-icon>
+            My Dashboard
           </v-btn>
-          <v-btn v-if="authStore.user" to="/wallet" variant="text" block class="justify-start rounded-xl px-6 h-56" active-color="primary" @click="drawer = false">
-            <v-icon start icon="mdi-wallet-outline" class="mr-4"></v-icon>
-            Wealth Ledger
+          <v-btn v-if="authStore.user" to="/wallet" variant="text" block class="justify-start rounded-lg px-4" height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+            <v-icon start size="18">mdi-wallet-outline</v-icon>
+            Wallet
           </v-btn>
-          <v-btn v-if="authStore.user" to="/profile" variant="text" block class="justify-start rounded-xl px-6 h-56" active-color="primary" @click="drawer = false">
-            <v-icon start icon="mdi-account-circle-outline" class="mr-4"></v-icon>
-            Identity Profile
+          <v-btn v-if="authStore.user" to="/profile" variant="text" block class="justify-start rounded-lg px-4" height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+            <v-icon start size="18">mdi-account-outline</v-icon>
+            Profile
           </v-btn>
-          <v-divider class="my-6 border-subtle opacity-10"></v-divider>
-          <v-btn v-if="authStore.role === 'admin'" to="/admin" variant="flat" color="primary" block class="rounded-xl h-56 shadow-lg" prepend-icon="mdi-shield-crown" @click="drawer = false">ADMIN PANEL</v-btn>
+          <v-btn v-if="authStore.role === 'admin'" to="/admin" variant="text" block class="justify-start rounded-lg px-4" height="44" style="color: var(--accent);" @click="drawer = false">
+            <v-icon start size="18">mdi-shield-crown-outline</v-icon>
+            Admin Panel
+          </v-btn>
         </div>
 
-        <div class="pt-8 border-t border-subtle">
-          <v-btn @click="toggleDark" block variant="tonal" class="rounded-xl h-48 mb-4" :color="isDark ? 'warning' : 'primary'">
-            <v-icon start :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'"></v-icon>
-            {{ isDark ? 'Luminous Mode' : 'Stealth Mode' }}
+        <v-divider class="my-4" style="border-color: var(--border-color);"></v-divider>
+
+        <div class="d-flex flex-column gap-2">
+          <v-btn @click="toggleDark" variant="tonal" block class="rounded-lg" height="44" style="background: var(--bg-subtle); color: var(--text-secondary);">
+            <v-icon start size="18">{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+            {{ isDark ? 'Light Mode' : 'Dark Mode' }}
           </v-btn>
-          
+
           <template v-if="!authStore.user">
-            <v-btn v-if="$route.name !== 'Login' && $route.name !== 'Register'" to="/login" block variant="flat" color="primary" class="rounded-xl h-56 shadow-lg" @click="drawer = false">SIGN IN</v-btn>
+            <v-btn to="/login" variant="outlined" block class="rounded-lg btn-outline" height="44" @click="drawer = false">Sign In</v-btn>
+            <v-btn to="/register" block class="rounded-lg btn-primary" height="44" @click="drawer = false">Register Free</v-btn>
           </template>
-          <v-btn v-else @click="handleLogout" block variant="outlined" color="primary" class="rounded-xl h-56">TERMINATE SESSION</v-btn>
+          <v-btn v-else @click="handleLogout; drawer = false" variant="outlined" block class="rounded-lg btn-outline" height="44">
+            Sign Out
+          </v-btn>
         </div>
       </div>
     </v-navigation-drawer>
 
-    <!-- Premium Command Bar -->
-    <v-app-bar 
-      elevation="0" 
-      class="glass border-b border-subtle z-50"
-      height="80"
-      fixed
-    >
-      <v-container class="d-flex align-center px-6 fill-height" fluid>
-        <!-- Logo Architecture -->
-        <router-link to="/" class="d-flex align-center gap-4 text-decoration-none active-scale-95 transition-all group">
-          <v-avatar color="primary" class="rounded-xl shadow-lg rotate-3 group-hover:rotate-0 transition-transform duration-500" size="44">
-            <v-icon icon="mdi-gavel" color="white" size="24"></v-icon>
-          </v-avatar>
-          <div class="d-flex flex-column">
-            <span class="text-h5 font-weight-black text-primary tracking-tighter leading-none mb-0.5">
-              Bid<span class="text-primary opacity-60">Wars</span> 
-            </span>
-            <span class="text-[9px] font-weight-bold text-muted-custom tracking-[0.3em] uppercase opacity-60 leading-none">Elite Marketplace</span>
+    <!-- Top Navigation Bar -->
+    <v-app-bar elevation="0" height="64" fixed style="background-color: var(--bg-card) !important; border-bottom: 1px solid var(--border-color) !important; z-index: 100;">
+      <v-container class="d-flex align-center px-4 fill-height" style="max-width: 1280px; margin: 0 auto;" fluid>
+        <!-- Logo -->
+        <router-link to="/" class="d-flex align-center gap-2 text-decoration-none" style="gap: 8px;">
+          <div style="width: 34px; height: 34px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <v-icon icon="mdi-gavel" color="white" size="18"></v-icon>
           </div>
+          <span style="font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--text-primary); letter-spacing: -0.5px; line-height: 1;">BidWars</span>
         </router-link>
 
         <v-spacer></v-spacer>
 
-        <!-- Desktop Navigation Engine -->
-        <div class="hidden lg:flex align-center gap-2">
-          <div class="d-flex align-center bg-grey-lighten-4 rounded-pill pa-1 gap-1 border border-subtle mr-6">
-            <v-btn to="/auctions" variant="text" class="rounded-pill px-6" active-color="primary">Market</v-btn>
-            <v-btn v-if="authStore.role === 'bidder'" to="/dashboard" variant="text" class="rounded-pill px-6" active-color="primary">Portfolio</v-btn>
-            <v-btn v-if="authStore.user" to="/wallet" variant="text" class="rounded-pill px-6" active-color="primary">Wallet</v-btn>
-            <v-btn v-if="authStore.user" to="/profile" variant="text" class="rounded-pill px-6" active-color="primary">Profile</v-btn>
-          </div>
+        <!-- Desktop Nav -->
+        <div class="d-none d-lg-flex align-center" style="gap: 4px;">
+          <v-btn to="/auctions" variant="text" class="rounded-lg px-4" height="38" style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Auctions</v-btn>
+          <v-btn v-if="authStore.role === 'bidder'" to="/dashboard" variant="text" class="rounded-lg px-4" height="38" style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Dashboard</v-btn>
+          <v-btn v-if="authStore.user" to="/wallet" variant="text" class="rounded-lg px-4" height="38" style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Wallet</v-btn>
+          <v-btn v-if="authStore.user" to="/profile" variant="text" class="rounded-lg px-4" height="38" style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Profile</v-btn>
 
-          <div class="d-flex align-center gap-2 pl-6 border-l border-subtle">
-            <v-btn v-if="authStore.role === 'admin'" to="/admin" variant="flat" color="primary" class="rounded-pill px-6 shadow-md" prepend-icon="mdi-shield-crown">ADMIN</v-btn>
-            
-            <v-btn icon @click="toggleDark" class="rounded-xl" variant="text">
-              <v-icon :icon="isDark ? 'mdi-white-balance-sunny' : 'mdi-moon-waning-crescent'" :color="isDark ? 'warning' : 'primary'"></v-icon>
-            </v-btn>
+          <div style="width: 1px; height: 24px; background: var(--border-color); margin: 0 8px;"></div>
 
-            <template v-if="!authStore.user && $route.name !== 'Login' && $route.name !== 'Register'">
-              <v-btn to="/login" variant="flat" color="primary" class="rounded-pill px-8 shadow-lg h-48" elevation="12">SIGN IN</v-btn>
-            </template>
-            <v-btn v-else @click="handleLogout" variant="tonal" class="rounded-pill pr-2 pl-4 gap-3 h-48" color="primary">
-               <span class="text-caption font-weight-black opacity-80 uppercase tracking-widest">{{ authStore.user?.username }}</span>
-               <v-avatar color="primary" size="32" class="font-weight-black text-caption shadow-sm">
-                 {{ (authStore.user?.username || 'J')[0].toUpperCase() }}
-               </v-avatar>
-            </v-btn>
-          </div>
+          <v-btn v-if="authStore.role === 'admin'" to="/admin" variant="tonal" class="rounded-lg px-4" height="38" style="background: var(--accent-soft); color: var(--accent); font-weight: 600; font-size: 13px;" prepend-icon="mdi-shield-crown-outline">Admin</v-btn>
+
+          <v-btn icon @click="toggleDark" variant="text" class="rounded-lg" size="38" style="color: var(--text-muted);">
+            <v-icon size="18">{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+          </v-btn>
+
+          <template v-if="!authStore.user">
+            <v-btn to="/login" variant="outlined" class="rounded-lg px-5 btn-outline" height="38" style="font-size: 14px;">Sign In</v-btn>
+            <v-btn to="/register" class="rounded-lg px-5 btn-primary" height="38" style="font-size: 14px; margin-left: 6px;">Register Free</v-btn>
+          </template>
+          <v-btn v-else variant="tonal" class="rounded-lg px-3" height="38" style="background: var(--bg-subtle); color: var(--text-primary); font-weight: 500;" @click="handleLogout">
+            <v-avatar size="24" style="background: var(--accent); margin-right: 8px; border-radius: 6px;">
+              <span style="color: white; font-size: 11px; font-weight: 700;">{{ (authStore.user?.username || 'U')[0].toUpperCase() }}</span>
+            </v-avatar>
+            {{ authStore.user?.username }}
+          </v-btn>
         </div>
 
-        <!-- Mobile Command Toggle -->
-        <v-btn icon color="primary" variant="tonal" class="rounded-xl lg-hidden" @click="drawer = !drawer">
-          <v-icon icon="mdi-menu-variant"></v-icon>
-        </v-btn>
+        <!-- Mobile Toggle -->
+        <div class="d-flex d-lg-none align-center" style="gap: 8px;">
+          <v-btn icon @click="toggleDark" variant="text" size="36" style="color: var(--text-muted);">
+            <v-icon size="18">{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
+          </v-btn>
+          <v-btn icon @click="drawer = !drawer" variant="text" size="38" style="color: var(--text-primary);">
+            <v-icon size="20">mdi-menu</v-icon>
+          </v-btn>
+        </div>
       </v-container>
     </v-app-bar>
 
-    <!-- Main Viewport Context -->
-    <v-main class="relative z-10 min-vh-100 px-0">
+    <!-- Main Content -->
+    <v-main style="background-color: var(--bg-page); padding-top: 64px;">
       <router-view v-slot="{ Component }">
-        <transition name="page-transition" mode="out-in">
+        <transition name="page" mode="out-in">
           <component :is="Component" />
         </transition>
       </router-view>
     </v-main>
 
-    <!-- Institutional Footer Foundation -->
-    <v-footer v-if="$route.name !== 'Login' && $route.name !== 'Register'" class="bg-surface border-t border-subtle py-8 relative z-10" app order="1">
-      <v-container class="px-6" fluid>
-        <v-row align="center" justify="space-between" class="gap-y-6">
-          <v-col cols="12" md="auto">
-            <div class="d-flex align-center gap-6">
-              <div class="d-flex align-center gap-3">
-                 <v-icon icon="mdi-shield-check" color="primary" size="20"></v-icon>
-                 <span class="text-[10px] font-weight-black text-primary tracking-[0.2em] uppercase">Trusted Exchange</span>
-              </div>
-              <div class="h-4 w-px bg-border-subtle hidden md-block"></div>
-              <span class="text-[10px] font-weight-bold text-muted-custom opacity-70">© 2026 BidWars Institutional Core. All rights reserved.</span>
+    <!-- Footer -->
+    <v-footer v-if="!isAuthPage()" style="background-color: var(--bg-card); border-top: 1px solid var(--border-color); padding: 24px 16px;">
+      <v-container style="max-width: 1280px; margin: 0 auto;" fluid>
+        <div class="d-flex flex-wrap align-center justify-space-between" style="gap: 16px;">
+          <div class="d-flex align-center" style="gap: 8px;">
+            <div style="width: 24px; height: 24px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+              <v-icon icon="mdi-gavel" color="white" size="13"></v-icon>
             </div>
-          </v-col>
-          <v-col cols="12" md="auto">
-            <div class="d-flex gap-8 justify-center justify-md-end">
-              <a href="#" class="text-[10px] font-weight-black text-muted-custom hover-text-primary text-decoration-none tracking-widest uppercase">Protocol</a>
-              <a href="#" class="text-[10px] font-weight-black text-muted-custom hover-text-primary text-decoration-none tracking-widest uppercase">Security</a>
-              <a href="#" class="text-[10px] font-weight-black text-muted-custom hover-text-primary text-decoration-none tracking-widest uppercase">Audit</a>
-            </div>
-          </v-col>
-        </v-row>
+            <span style="font-family: 'DM Serif Display', serif; color: var(--text-primary); font-size: 16px;">BidWars</span>
+            <span style="color: var(--text-muted); font-size: 13px;">© 2026</span>
+          </div>
+          <div class="d-flex" style="gap: 24px;">
+            <a href="#" style="color: var(--text-muted); font-size: 13px; text-decoration: none;">Terms</a>
+            <a href="#" style="color: var(--text-muted); font-size: 13px; text-decoration: none;">Privacy</a>
+            <a href="#" style="color: var(--text-muted); font-size: 13px; text-decoration: none;">Support</a>
+          </div>
+        </div>
       </v-container>
     </v-footer>
 
@@ -190,66 +187,9 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.institutional-shell {
-  background-color: var(--bg-page) !important;
-}
+.page-enter-active, .page-leave-active { transition: opacity 0.2s ease; }
+.page-enter-from, .page-leave-to { opacity: 0; }
 
-.min-vh-100 {
-  min-height: 100vh;
-}
-
-.lg-hidden {
-  display: none !important;
-}
-
-@media (max-width: 1280px) {
-  .lg-hidden {
-    display: flex !important;
-  }
-}
-
-/* Page Transition Mechanics */
-.page-transition-enter-active,
-.page-transition-leave-active {
-  transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.page-transition-enter-from {
-  opacity: 0;
-  transform: translateY(16px);
-}
-
-.page-transition-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.hover-text-primary:hover {
-  color: rgb(var(--v-theme-primary)) !important;
-}
-
-.bg-border-subtle {
-  background-color: var(--border-subtle);
-}
-
-.active-scale-95:active {
-  transform: scale(0.95);
-}
-</style>
-
-<style>
-/* Reset and Global Polish */
-.v-application__wrap {
-  min-height: 100vh !important;
-}
-
-.v-btn--active::before {
-  opacity: 0.1 !important;
-}
-
-.text-lowercase { text-transform: lowercase !important; }
-.text-uppercase { text-transform: uppercase !important; }
-.text-capitalize { text-transform: capitalize !important; }
-.italic { font-style: italic !important; }
-.not-italic { font-style: normal !important; }
+:deep(.v-btn--active) { color: var(--accent) !important; }
+:deep(.v-btn--active .v-btn__content) { color: var(--accent) !important; }
 </style>

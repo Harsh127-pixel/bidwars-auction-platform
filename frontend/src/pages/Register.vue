@@ -1,135 +1,116 @@
 <template>
-  <v-container class="fill-height pa-0" fluid>
-    <!-- Environmental HUD -->
-    <div class="fixed inset-0 hud-overlay z-0 opacity-30"></div>
-    
-    <v-row align="center" justify="center" class="fill-height ma-0 relative z-10">
-      <v-col cols="12" sm="10" md="10" lg="8" xl="6" class="d-flex justify-center">
-        <v-card 
-          elevation="24" 
-          class="rounded-3xl overflow-hidden d-flex flex-column flex-md-row w-100 bg-surface border-subtle shadow-premium animate-zoom"
-          style="min-height: 680px;"
-        >
-          <!-- Authentication Command Pane -->
-          <v-col cols="12" md="6" lg="7" class="pa-12 pa-md-16 d-flex flex-column justify-center bg-surface relative order-2 md:order-1">
-            <div class="mb-12 text-left">
-              <div class="d-flex align-center gap-3 mb-2">
-                <v-chip color="primary" size="x-small" variant="flat" class="font-weight-black px-3 py-3 text-[9px] tracking-widest">GATEWAY 02</v-chip>
-                <p class="text-overline font-weight-black text-primary tracking-[0.4em] uppercase ma-0 opacity-60">Enrollment Request</p>
-              </div>
-              <h3 class="text-[52px] font-weight-black italic tracking-tighter ma-0 leading-none">
-                Identity <span class="text-primary not-italic">Creation</span>
-              </h3>
+  <div style="min-height: 100vh; background: var(--bg-page); display: flex; align-items: center; justify-content: center; padding: 24px 16px;">
+    <div style="width: 100%; max-width: 960px; display: flex; background: var(--bg-card); border-radius: 16px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: var(--shadow-xl);" class="animate-in">
+
+      <!-- Left Panel -->
+      <div style="flex: 1; background: linear-gradient(135deg, #1a1a18 0%, #2d2d28 100%); padding: 48px; display: none; flex-direction: column; justify-content: space-between;" class="d-none d-md-flex">
+        <div>
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 48px;">
+            <div style="width: 36px; height: 36px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+              <v-icon size="20" color="white">mdi-gavel</v-icon>
             </div>
+            <span style="font-family: 'DM Serif Display', serif; color: white; font-size: 22px;">BidWars</span>
+          </div>
 
-            <v-form @submit.prevent="handleRegister" class="space-y-6">
-              <v-text-field
-                v-model="username"
-                label="PROFESSIONAL PSEUDONYM"
-                variant="outlined"
-                rounded="xl"
-                prepend-inner-icon="mdi-account-outline"
-                class="font-weight-bold"
-                placeholder="Executive Handle"
-                hide-details="auto"
-                :rules="[v => !!v || 'Pseudonym required']"
-              ></v-text-field>
+          <h2 style="font-family: 'DM Serif Display', serif; font-size: 36px; color: white; line-height: 1.2; margin: 0 0 16px; font-weight: 400;">
+            Join 50,000+ bidders worldwide
+          </h2>
+          <p style="color: rgba(255,255,255,0.55); font-size: 15px; line-height: 1.7; margin: 0 0 36px;">
+            Get instant access to live auctions across art, watches, vehicles, and more.
+          </p>
 
-              <v-text-field
-                v-model="email"
-                label="DIGITAL MAIL IDENTITY"
-                variant="outlined"
-                rounded="xl"
-                prepend-inner-icon="mdi-email-outline"
-                class="font-weight-bold"
-                placeholder="identity@bidwars.elite"
-                type="email"
-                hide-details="auto"
-                :rules="[v => !!v || 'Identifier required']"
-              ></v-text-field>
+          <div style="background: rgba(255,255,255,0.06); border-radius: 12px; padding: 20px;">
+            <div style="color: rgba(255,255,255,0.4); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 12px;">New member bonus</div>
+            <div style="color: white; font-size: 28px; font-family: 'DM Serif Display', serif; margin-bottom: 4px;">₹5,000</div>
+            <div style="color: rgba(255,255,255,0.5); font-size: 13px;">Free credits added to your wallet</div>
+          </div>
+        </div>
 
-              <v-text-field
-                v-model="password"
-                label="PASSKEY PROTOCOL"
-                variant="outlined"
-                rounded="xl"
-                prepend-inner-icon="mdi-lock-outline"
-                class="font-weight-bold"
-                placeholder="••••••••"
-                type="password"
-                hide-details="auto"
-                :rules="[v => !!v || 'Passkey required']"
-              ></v-text-field>
-              
-              <v-checkbox color="primary" hide-details density="comfortable" class="mt-4">
-                <template v-slot:label>
-                  <span class="text-[11px] font-weight-bold text-muted-custom leading-tight">
-                    I acknowledge the <span class="text-primary font-weight-black">BWC Compliance Standards</span> for the bidding floor.
-                  </span>
-                </template>
-              </v-checkbox>
+        <div style="color: rgba(255,255,255,0.3); font-size: 12px;">
+          By creating an account, you agree to our Terms of Service and Privacy Policy.
+        </div>
+      </div>
 
-              <v-btn
-                type="submit"
-                color="primary"
-                block
-                height="80"
-                rounded="pill"
-                class="font-weight-black text-caption tracking-[0.4em] mt-8 shadow-xl"
-                elevation="12"
-                :loading="loading"
-                prepend-icon="mdi-account-plus-outline"
-              >
-                INITIALIZE ENROLLMENT
-              </v-btn>
-
-              <div class="text-center mt-12 pt-8 border-t border-subtle border-opacity-30">
-                <p class="text-caption font-weight-bold text-muted-custom uppercase tracking-[0.2em] opacity-40">
-                  Existing participant?
-                  <router-link to="/login" class="text-primary font-weight-black text-decoration-none ml-2 border-b-2 border-primary border-opacity-20 pb-1">Authenticate Session</router-link>
-                </p>
-              </div>
-            </v-form>
-          </v-col>
-
-          <!-- Institutional Visual Pane -->
-          <v-col cols="12" md="6" lg="5" class="pa-0 relative bg-primary d-flex flex-column justify-center align-center text-center text-white overflow-hidden order-1 md:order-2">
-            <v-img
-              src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&q=80&w=1000"
-              cover
-              class="absolute inset-0 opacity-20 scale-110"
-            ></v-img>
-            
-            <div class="pa-12 relative z-10 w-100">
-              <v-avatar color="white" class="rounded-2xl shadow-2xl mb-10 rotate-n3 border-4 border-white-opacity-20" size="80">
-                <v-icon icon="mdi-account-plus" color="primary" size="40"></v-icon>
-              </v-avatar>
-              <h2 class="text-h2 font-weight-black tracking-tighter italic mb-6 leading-none">
-                Elite <span class="not-italic opacity-40">Network</span>
-              </h2>
-              <p class="text-h6 font-weight-medium opacity-70 leading-relaxed ma-0 max-w-sm mx-auto">
-                Join the sovereign circuit of institutional bidders and high-value asset collectors.
-              </p>
-              
-              <div class="mt-16 d-flex flex-column gap-4 align-center">
-                <div class="d-flex align-center gap-4 py-2 px-6 rounded-pill border border-white-opacity-10 bg-white-opacity-5 backdrop-blur-md">
-                  <v-icon icon="mdi-shield-crown" size="20" color="warning"></v-icon>
-                  <span class="text-[10px] font-weight-black tracking-[0.3em] uppercase">KYC-Ready Protocol</span>
-                </div>
-                <div class="d-flex align-center gap-4 py-2 px-6 rounded-pill border border-white-opacity-10 bg-white-opacity-5 backdrop-blur-md">
-                  <v-icon icon="mdi-earth" size="20"></v-icon>
-                  <span class="text-[10px] font-weight-black tracking-[0.3em] uppercase">Global Liquidity Pool</span>
-                </div>
-              </div>
+      <!-- Right: Form -->
+      <div style="flex: 1; padding: 48px; display: flex; flex-direction: column; justify-content: center; min-width: 320px;">
+        <div style="margin-bottom: 32px;">
+          <div class="d-flex d-md-none align-center" style="gap: 8px; margin-bottom: 32px;">
+            <div style="width: 30px; height: 30px; background: var(--accent); border-radius: 7px; display: flex; align-items: center; justify-content: center;">
+              <v-icon size="16" color="white">mdi-gavel</v-icon>
             </div>
+            <span style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary);">BidWars</span>
+          </div>
 
-            <!-- Decorative HUD Arc -->
-            <div class="absolute top-n20 right-n20 w-80 h-80 rounded-circle border-4 border-white opacity-5"></div>
-          </v-col>
-        </v-card>
-      </v-col>
-    </v-row>
-  </v-container>
+          <h1 style="font-family: 'DM Serif Display', serif; font-size: 30px; color: var(--text-primary); margin: 0 0 8px; font-weight: 400;">Create your account</h1>
+          <p style="color: var(--text-muted); font-size: 14px; margin: 0;">Free to join. Start bidding in minutes.</p>
+        </div>
+
+        <form @submit.prevent="handleRegister" style="display: flex; flex-direction: column; gap: 16px;">
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Display name</label>
+            <input
+              v-model="username"
+              type="text"
+              placeholder="How others see you"
+              required
+              style="width: 100%; padding: 11px 14px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 15px; outline: none; transition: border-color 0.15s; font-family: 'DM Sans', sans-serif;"
+              @focus="$event.target.style.borderColor = 'var(--accent)'"
+              @blur="$event.target.style.borderColor = 'var(--border-color)'"
+            />
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Email address</label>
+            <input
+              v-model="email"
+              type="email"
+              placeholder="you@example.com"
+              required
+              style="width: 100%; padding: 11px 14px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 15px; outline: none; transition: border-color 0.15s; font-family: 'DM Sans', sans-serif;"
+              @focus="$event.target.style.borderColor = 'var(--accent)'"
+              @blur="$event.target.style.borderColor = 'var(--border-color)'"
+            />
+          </div>
+
+          <div>
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Password</label>
+            <input
+              v-model="password"
+              type="password"
+              placeholder="At least 8 characters"
+              required
+              style="width: 100%; padding: 11px 14px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 15px; outline: none; transition: border-color 0.15s; font-family: 'DM Sans', sans-serif;"
+              @focus="$event.target.style.borderColor = 'var(--accent)'"
+              @blur="$event.target.style.borderColor = 'var(--border-color)'"
+            />
+          </div>
+
+          <div style="background: var(--bg-elevated); border-radius: 8px; padding: 14px; display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--border-color);">
+            <v-icon size="18" style="color: var(--success); flex-shrink: 0; margin-top: 1px;">mdi-gift-outline</v-icon>
+            <div>
+              <div style="font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 2px;">₹5,000 welcome bonus</div>
+              <div style="font-size: 12px; color: var(--text-muted);">Added to your wallet immediately after signup</div>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="loading"
+            style="width: 100%; background: var(--accent); color: white; border: none; padding: 13px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px;"
+            :style="loading ? 'opacity: 0.7; cursor: not-allowed;' : ''"
+          >
+            <v-progress-circular v-if="loading" size="16" width="2" indeterminate color="white"></v-progress-circular>
+            {{ loading ? 'Creating account...' : 'Create Free Account' }}
+          </button>
+        </form>
+
+        <p style="text-align: center; margin-top: 24px; font-size: 14px; color: var(--text-muted);">
+          Already have an account?
+          <router-link to="/login" style="color: var(--accent); font-weight: 600; text-decoration: none; margin-left: 4px;">Sign in →</router-link>
+        </p>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -147,51 +128,19 @@ const router = useRouter()
 const notification = useNotification()
 
 const handleRegister = async () => {
-  if (!email.value || !password.value || !username.value) return
   loading.value = true
   try {
     const success = await authStore.register(email.value, password.value, username.value)
     if (success) {
-      notification.add("Enrollment Successful • Welcome to the Indigo Circuit", "success")
+      notification.add('Account created! ₹5,000 added to your wallet.', 'success')
       router.push('/')
     } else {
-      notification.add("Enrollment Rejected • Credentials Collision Detection", "error")
+      notification.add('Email already in use. Try signing in.', 'error')
     }
-  } catch (err) {
-    notification.add("System Dispatch Error • Please retry protocol", "error")
+  } catch {
+    notification.add('Something went wrong. Please try again.', 'error')
   } finally {
     loading.value = false
   }
 }
 </script>
-
-<style scoped>
-.animate-zoom {
-  animation: zoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes zoomIn {
-  from { opacity: 0; transform: scale(0.98) translateY(20px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-.shadow-premium {
-  box-shadow: 0 40px 80px -12px rgba(0, 0, 0, 0.4), 0 20px 40px -20px rgba(0, 0, 0, 0.5) !important;
-}
-
-.hud-overlay {
-  background: radial-gradient(circle at center, transparent 0%, rgba(var(--v-theme-primary), 0.15) 100%);
-  pointer-events: none;
-}
-
-.rotate-n3 {
-  transform: rotate(-3deg);
-}
-
-.z-10 { z-index: 10; }
-.inset-0 { top: 0; right: 0; bottom: 0; left: 0; }
-
-.v-card {
-  transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-}
-</style>
