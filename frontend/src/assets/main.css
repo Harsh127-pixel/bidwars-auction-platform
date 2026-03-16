@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+/* 
+  BIDWARS DESIGN SYSTEM - V11 (ULTRA PREMIERE)
+  Refined color palette and depth system.
+*/
+
+:root {
+  --bg-page: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --bg-footer: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
+  --border-subtle: #E2E8F0;
+  --accent-indigo: #4F46E5;
+  --glass-bg: rgba(255, 255, 255, 0.8);
+}
+
+.dark {
+  --bg-page: #020617;
+  --bg-card: #0F172A;
+  --bg-footer: #020617;
+  --text-primary: #F8FAFC;
+  --text-secondary: #94A3B8;
+  --text-muted: #475569;
+  --border-subtle: #1E293B;
+  --accent-indigo: #6366F1;
+  --glass-bg: rgba(15, 23, 42, 0.8);
+}
+
+/* Global Reset */
+html, body {
+  background-color: var(--bg-page) !important;
+  color: var(--text-primary) !important;
+  transition: background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Semantic Classes */
+.bg-base { background-color: var(--bg-page); }
+.bg-surface { background-color: var(--bg-card); }
+.text-primary-custom { color: var(--text-primary); }
+.text-secondary-custom { color: var(--text-secondary); }
+.text-muted-custom { color: var(--text-muted); }
+.border-subtle-custom { border-color: var(--border-subtle); }
+
+/* Typography */
+h1, h2, h3, h4, .font-heading {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+}
+
+/* Luxury Glassmorphism */
+.glass {
+  background-color: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 10px;
+}
+
+/* Tailwind 4 Hook */
+@theme {
+  --selector-dark: .dark;
+  --font-heading: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
