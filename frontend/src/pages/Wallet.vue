@@ -45,7 +45,7 @@ const handleTopup = async () => {
     rzpData.value = { 
       orderId: res.data.orderId || res.data.id, 
       key: res.data.key, 
-      amount: topupAmount.value * 100 
+      amount: res.data.amount 
     }
     showRzp.value = true
   } catch {

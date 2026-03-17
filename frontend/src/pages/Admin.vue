@@ -103,7 +103,7 @@ const hasPermission = (perm) => {
 const fetchData = async () => {
   loading.value = true
   try {
-    const [a, p, u, f, d, s, prop, pay, ful, sett, tickets, logs] = await Promise.all([
+    const [a, p, u, f, d, s, prop, pay, ful, sett, tickets, logs,emp] = await Promise.all([
       api.get('/api/auctions'),
       api.get('/api/admin/pendingAuctions'),
       api.get('/api/admin/users'),

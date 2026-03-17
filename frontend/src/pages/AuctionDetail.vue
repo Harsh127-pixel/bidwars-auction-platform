@@ -80,7 +80,16 @@ const fetchAuction = async () => {
   } finally { loading.value = false }
 }
 
-const ensureAuth = (msg = 'Please sign in to continue') => {
+const ensureAuth = async (msg = 'Please sign in to continue') => {
+  // Wait for Firebase to resolve auth state (page refresh race condition)
+  if (authStore.loading) {
+    await new Promise((resolve) => {
+      const maxWait = setTimeout(resolve, 3000)
+      const stop = authStore.$subscribe(() => {
+        if (!authStore.loading) { clearTimeout(maxWait); stop(); resolve() }
+      })
+    })
+  }
   if (!authStore.user) {
     notification.add(msg, 'info')
     router.push({ path: '/login', query: { redirect: route.fullPath } })
@@ -240,10 +249,9 @@ onUnmounted(() => {
           <div v-if="!isJoined && timeLeft !== 'Ended'" class="join-gate">
             <div class="join-gate__title">Enter to Bid</div>
             <div class="join-gate__sub">A refundable deposit of {{ fmt((auction.minBid||0) * 0.1) }} is held while you participate.</div>
-            <button class="btn-join" :disabled="joining" @click="joinAuction">
-              <span v-if="joining" class="btn-spin"></span>
-              {{ joining ? 'Authorizing…' : 'Place Deposit & Start Bidding' }}
-            </button>
+<button class="btn-join" :disabled="joining || authStore.loading" @click="joinAuction">
+  {{ authStore.loading ? 'Loading…' : joining ? 'Authorizing…' : 'Place Deposit & Start Bidding' }}
+</button>
           </div>
 
           <!-- ENDED BANNER -->
