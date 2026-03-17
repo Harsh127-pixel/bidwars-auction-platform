@@ -43,6 +43,26 @@ class ReportService {
     const dailyRevenue = {}
     last7Days.forEach(date => { dailyRevenue[date] = 0 })
 
+    // Build last 12 months
+    const last12Months = []
+    const monthlyRevenue = {}
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+      last12Months.push(key)
+      monthlyRevenue[key] = 0
+    }
+
+    // Build last 5 years
+    const last5Years = []
+    const yearlyRevenue = {}
+    for (let i = 4; i >= 0; i--) {
+      const year = new Date().getFullYear() - i
+      last5Years.push(String(year))
+      yearlyRevenue[year] = 0
+    }
+
     auctionsSnap.forEach(doc => {
       const data = doc.data()
       if (data.status === 'closed' && data.highestBidder) {
@@ -50,19 +70,21 @@ class ReportService {
         totalSales += bid
         completedAuctions++
 
-        // Dynamic fee by seller tier
         const seller = userMap[data.sellerId] || {}
         const tier = seller.membershipTier || 'Bronze'
         const rate = tier === 'Gold' ? 0.01 : (tier === 'Silver' ? 0.03 : 0.05)
         platformFees += bid * rate
 
-        // Time-series — safely parse endTime
         const endMs = toMs(data.endTime)
         if (endMs > 0) {
-          const dateKey = new Date(endMs).toISOString().split('T')[0]
-          if (dailyRevenue[dateKey] !== undefined) {
-            dailyRevenue[dateKey] += bid
-          }
+          const d = new Date(endMs)
+          const dateKey = d.toISOString().split('T')[0]
+          const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          const yearKey = String(d.getFullYear())
+
+          if (dailyRevenue[dateKey] !== undefined) dailyRevenue[dateKey] += bid
+          if (monthlyRevenue[monthKey] !== undefined) monthlyRevenue[monthKey] += bid
+          if (yearlyRevenue[yearKey] !== undefined) yearlyRevenue[yearKey] += bid
         }
       }
     })
@@ -83,6 +105,8 @@ class ReportService {
       if (tiers[tier] !== undefined) tiers[tier]++
     })
 
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
     return {
       totalSales,
       platformFees: Math.round(platformFees),
@@ -97,6 +121,17 @@ class ReportService {
           return `${day}/${m}`
         }),
         values: last7Days.map(d => Math.round(dailyRevenue[d]))
+      },
+      monthlyTimeSeries: {
+        labels: last12Months.map(m => {
+          const [year, month] = m.split('-')
+          return `${monthNames[parseInt(month)-1]} ${year.slice(2)}`
+        }),
+        values: last12Months.map(m => Math.round(monthlyRevenue[m]))
+      },
+      yearlyTimeSeries: {
+        labels: last5Years,
+        values: last5Years.map(y => Math.round(yearlyRevenue[y]))
       }
     }
   }

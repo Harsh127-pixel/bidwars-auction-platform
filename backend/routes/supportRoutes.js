@@ -2,7 +2,8 @@
 const express = require("express")
 const router = express.Router()
 const { db } = require("../config/firebase")
-const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware")
+const { verifyToken, verifyAdmin, verifyStaff, checkPermission } = require("../middleware/authMiddleware")
+const notificationService = require("../services/notificationService")
 
 // User: Create support ticket
 router.post("/tickets", verifyToken, async (req, res) => {
@@ -44,7 +45,7 @@ router.get("/tickets", verifyToken, async (req, res) => {
 })
 
 // Admin Only: Get all tickets
-router.get("/admin/tickets", verifyToken, verifyAdmin, async (req, res) => {
+router.get("/admin/tickets", verifyToken, verifyStaff, checkPermission("view_support"), async (req, res) => {
   try {
     const snapshot = await db.collection("support_tickets").get()
     const tickets = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
@@ -62,7 +63,9 @@ router.get("/tickets/:id", verifyToken, async (req, res) => {
     if (!doc.exists) return res.status(404).json({ error: "Ticket not found" })
     
     const ticket = doc.data()
-    if (ticket.userId !== req.user.uid && req.user.role !== 'admin' && req.user.role !== 'employee') {
+    const isStaff = req.user.role === 'admin' || (req.user.role === 'employee' && req.user.permissions?.view_support)
+    
+    if (ticket.userId !== req.user.uid && !isStaff) {
       return res.status(403).json({ error: "Forbidden" })
     }
 
@@ -90,10 +93,12 @@ router.post("/tickets/:id/reply", verifyToken, async (req, res) => {
     if (!ticketDoc.exists) return res.status(404).json({ error: "Ticket not found" })
 
     const ticket = ticketDoc.data()
-    const isAdminReply = req.user.role === 'admin' || req.user.role === 'employee'
+    const isStaff = req.user.role === 'admin' || req.user.role === 'employee'
+    const isAdminReply = isStaff && (req.user.role === 'admin' || req.user.permissions?.manage_support)
     
     if (!isAdminReply && ticket.userId !== req.user.uid) {
-      return res.status(403).json({ error: "Forbidden" })
+      // If they are an employee but lack manage_support, it's still forbidden if not their own ticket
+      return res.status(403).json({ error: "Access denied - Missing manage_support permission" })
     }
 
     const reply = {
@@ -105,10 +110,13 @@ router.post("/tickets/:id/reply", verifyToken, async (req, res) => {
     }
 
     await ticketRef.collection("replies").add(reply)
-    await ticketRef.update({ 
-      updatedAt: new Date(),
-      status: isAdminReply ? "replied" : "open" 
-    })
+    
+    // Update status based on reply source
+    const updates = { updatedAt: new Date() }
+    if (isAdminReply) updates.status = "replied"
+    else updates.status = "open"
+
+    await ticketRef.update(updates)
 
     // Notify user if it's an admin reply
     if (isAdminReply) {
@@ -129,9 +137,7 @@ router.post("/tickets/:id/reply", verifyToken, async (req, res) => {
 })
 
 // Admin Only: Resolve/Update ticket
-router.put("/admin/tickets/:id", verifyToken, async (req, res) => {
-  const isAdmin = req.user.role === 'admin' || req.user.role === 'employee'
-  if (!isAdmin) return res.status(403).json({ error: "Admin only" })
+router.put("/admin/tickets/:id", verifyToken, verifyStaff, checkPermission("manage_support"), async (req, res) => {
   try {
     const { id } = req.params
     const { status, resolution } = req.body

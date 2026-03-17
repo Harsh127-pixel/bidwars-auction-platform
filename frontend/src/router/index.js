@@ -57,22 +57,33 @@ router.beforeEach(async (to, from, next) => {
     })
   }
 
+  const isStaff = authStore.role === 'admin' || authStore.role === 'employee'
+  const isAdminRoute = to.path.startsWith('/admin')
+
   // ✅ Allow the admin login page through without any auth check
   if (to.path === '/admin/login') {
+    if (isStaff) return next('/admin') // Already staff? Go to dashboard
     return next()
   }
 
+  // Auth requirement check
   if (to.meta.requiresAuth && !authStore.user) {
-    if (to.path.startsWith('/admin')) {
-      next('/admin/login')
-    } else {
-      next({ path: '/login', query: { redirect: to.fullPath } })
-    }
-  } else if (to.meta.requiresAdmin && !(authStore.role === 'admin' || authStore.role === 'employee')) {
-    next('/auctions')
-  } else {
-    next()
+    return isAdminRoute ? next('/admin/login') : next({ path: '/login', query: { redirect: to.fullPath } })
   }
+
+  if (isStaff) {
+    // Staff should ONLY be on /admin or /support or login/logout related
+    if (!isAdminRoute && !['Support', 'Terms', 'Privacy'].includes(to.name)) {
+      return next('/admin')
+    }
+  } else {
+    // Normal users should NOT be on /admin
+    if (isAdminRoute) {
+      return next('/auctions')
+    }
+  }
+
+  next()
 })
 
 export default router

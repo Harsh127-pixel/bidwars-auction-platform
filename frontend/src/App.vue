@@ -176,34 +176,39 @@ onMounted(() => {
         </div>
 
         <div class="d-flex flex-column gap-1">
-          <v-btn to="/auctions" variant="text" block class="justify-start rounded-lg px-4" height="44"
-            style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
-            <v-icon start size="18">mdi-gavel</v-icon>Browse Auctions
-          </v-btn>
-          <v-btn v-if="authStore.user" to="/sell" variant="text" block class="justify-start rounded-lg px-4"
-            height="44" style="color: var(--accent); font-weight: 600;" @click="drawer = false">
-            <v-icon start size="18">mdi-plus-box-outline</v-icon>Sell Asset
-          </v-btn>
-          <v-btn v-if="authStore.user" to="/dashboard" variant="text" block class="justify-start rounded-lg px-4"
-            height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
-            <v-icon start size="18">mdi-view-dashboard-outline</v-icon>My Dashboard
-          </v-btn>
-          <v-btn v-if="authStore.user" to="/wallet" variant="text" block class="justify-start rounded-lg px-4"
-            height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
-            <v-icon start size="18">mdi-wallet-outline</v-icon>Wallet
-          </v-btn>
-          <v-btn v-if="authStore.user" to="/profile" variant="text" block class="justify-start rounded-lg px-4"
-            height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
-            <v-icon start size="18">mdi-account-outline</v-icon>Profile
-          </v-btn>
+          <template v-if="authStore.role !== 'admin' && authStore.role !== 'employee'">
+            <v-btn to="/auctions" variant="text" block class="justify-start rounded-lg px-4" height="44"
+              style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+              <v-icon start size="18">mdi-gavel</v-icon>Browse Auctions
+            </v-btn>
+            <v-btn v-if="authStore.user" to="/sell" variant="text" block class="justify-start rounded-lg px-4"
+              height="44" style="color: var(--accent); font-weight: 600;" @click="drawer = false">
+              <v-icon start size="18">mdi-plus-box-outline</v-icon>Sell Asset
+            </v-btn>
+            <v-btn v-if="authStore.user" to="/dashboard" variant="text" block class="justify-start rounded-lg px-4"
+              height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+              <v-icon start size="18">mdi-view-dashboard-outline</v-icon>My Dashboard
+            </v-btn>
+            <v-btn v-if="authStore.user" to="/wallet" variant="text" block class="justify-start rounded-lg px-4"
+              height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+              <v-icon start size="18">mdi-wallet-outline</v-icon>Wallet
+            </v-btn>
+            <v-btn v-if="authStore.user" to="/profile" variant="text" block class="justify-start rounded-lg px-4"
+              height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
+              <v-icon start size="18">mdi-account-outline</v-icon>Profile
+            </v-btn>
+          </template>
+
           <v-btn v-if="authStore.user" variant="text" block class="justify-start rounded-lg px-4"
             height="44" style="color: var(--text-secondary); font-weight: 500;" @click="resetPassword(); drawer = false">
             <v-icon start size="18">mdi-lock-reset</v-icon>Reset Password
           </v-btn>
+          
           <v-btn v-if="authStore.role === 'admin' || authStore.role === 'employee'" to="/admin" variant="text" block
             class="justify-start rounded-lg px-4" height="44" style="color: var(--accent);" @click="drawer = false">
-            <v-icon start size="18">mdi-shield-crown-outline</v-icon>Admin Panel
+            <v-icon start size="18">mdi-shield-crown-outline</v-icon>Admin Dashboard
           </v-btn>
+          
           <v-btn to="/support" variant="text" block class="justify-start rounded-lg px-4"
             height="44" style="color: var(--text-secondary); font-weight: 500;" @click="drawer = false">
             <v-icon start size="18">mdi-help-circle-outline</v-icon>Support & Help
@@ -241,14 +246,20 @@ onMounted(() => {
 
         <!-- Desktop Nav -->
         <div class="d-none d-lg-flex align-center" style="gap: 4px;">
-          <v-btn to="/auctions" variant="text" class="rounded-lg px-4" height="38"
-            style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Auctions</v-btn>
-          <v-btn v-if="authStore.user" to="/sell" variant="flat" class="rounded-lg px-4 mr-2" height="38"
-            style="background: var(--accent); color: white; font-weight: 600; font-size: 13px;">Sell Asset</v-btn>
-          <v-btn v-if="authStore.user" to="/dashboard" variant="text" class="rounded-lg px-4" height="38"
-            style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Dashboard</v-btn>
-          <v-btn v-if="authStore.user" to="/wallet" variant="text" class="rounded-lg px-4" height="38"
-            style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Wallet</v-btn>
+          <template v-if="authStore.role !== 'admin' && authStore.role !== 'employee'">
+            <v-btn to="/auctions" variant="text" class="rounded-lg px-4" height="38"
+              style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Auctions</v-btn>
+            <v-btn v-if="authStore.user" to="/sell" variant="flat" class="rounded-lg px-4 mr-2" height="38"
+              style="background: var(--accent); color: white; font-weight: 600; font-size: 13px;">Sell Asset</v-btn>
+            <v-btn v-if="authStore.user" to="/dashboard" variant="text" class="rounded-lg px-4" height="38"
+              style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Dashboard</v-btn>
+            <v-btn v-if="authStore.user" to="/wallet" variant="text" class="rounded-lg px-4" height="38"
+              style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Wallet</v-btn>
+          </template>
+          <template v-else>
+             <v-btn to="/support" variant="text" class="rounded-lg px-4" height="38"
+              style="color: var(--text-secondary); font-weight: 500; font-size: 14px;">Support Handling</v-btn>
+          </template>
           
           <v-btn v-if="authStore.user?.isVerified" variant="text" size="small" icon class="mr-2" title="KYC Verified" style="color: var(--green);">
             <v-icon>mdi-check-decagram</v-icon>
@@ -403,10 +414,37 @@ onMounted(() => {
       v-model="showSubscriptionModal"
       :context="subscriptionTriggerContext"
     />
+
+    <!-- Floating Support Chat Button -->
+    <v-btn
+      v-if="authStore.role !== 'admin' && authStore.role !== 'employee'"
+      to="/support"
+      icon="mdi-chat-processing-outline"
+      color="var(--gold)"
+      size="large"
+      elevation="8"
+      class="floating-support-btn"
+    >
+      <v-icon color="black">mdi-chat-processing-outline</v-icon>
+    </v-btn>
   </v-app>
 </template>
 
 <style scoped>
+.floating-support-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  border: 1px solid rgba(0,0,0,0.1);
+  animation: float-pulse 2s infinite ease-in-out;
+}
+
+@keyframes float-pulse {
+  0% { transform: translateY(0); box-shadow: 0 8px 25px rgba(212, 175, 55, 0.3); }
+  50% { transform: translateY(-4px); box-shadow: 0 12px 35px rgba(212, 175, 55, 0.5); }
+  100% { transform: translateY(0); box-shadow: 0 8px 25px rgba(212, 175, 55, 0.3); }
+}
 .page-enter-active, .page-leave-active { transition: opacity 0.2s ease; }
 .page-enter-from, .page-leave-to { opacity: 0; }
 :deep(.theme-active) { background: var(--bg-subtle) !important; }

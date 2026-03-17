@@ -7,6 +7,10 @@ import { useNotification } from '../services/notification'
 import StatCard from '../components/StatCard.vue'
 import EmptyState from '../components/EmptyState.vue'
 import MediaUpload from '../components/MediaUpload.vue'
+import { Line as LineChart } from 'vue-chartjs'
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const authStore = useAuthStore()
 const notification = useNotification()
@@ -52,7 +56,8 @@ const permissionKeys = [
   { key: 'manage_fulfillment', label: 'Manage Fulfillment' },
   { key: 'view_disputes', label: 'View Disputes' },
   { key: 'manage_disputes', label: 'Manage Disputes' },
-  { key: 'view_audit', label: 'View Audit Logs' },
+  { key: 'view_support', label: 'View Support Tickets' },
+  { key: 'manage_support', label: 'Handle Support Tickets' },
   { key: 'manage_settings', label: 'Manage Settings' }
 ]
 
@@ -88,7 +93,7 @@ const allTabsConfigs = [
   { id:'fulfillment',label:'Fulfillment', permission: 'view_fulfillment' },
   { id:'flagged',    label:'Security',    permission: 'manage_users' },
   { id:'disputes',   label:'Disputes',    permission: 'view_disputes' },
-  { id:'support',    label:'Support'     },
+  { id:'support',    label:'Support',     permission: 'view_support' },
   { id:'users',      label:'Users',       permission: 'view_users' },
   { id:'employees',  label:'Employees',   adminOnly: true },
   { id:'logs',       label:'Audit Logs',  permission: 'view_audit' },
@@ -109,6 +114,66 @@ const tabs = computed(() => {
 const hasPermission = (perm) => {
   if (authStore.role === 'admin') return true
   return authStore.user?.permissions?.[perm]
+}
+
+const timeRange = ref('month')
+const chartData = computed(() => {
+  const ts = stats.value.timeSeries || { labels: [], values: [] }
+  const mts = stats.value.monthlyTimeSeries || { labels: [], values: [] }
+  const yts = stats.value.yearlyTimeSeries || { labels: [], values: [] }
+  
+  let source = mts
+  if (timeRange.value === 'day') source = ts
+  if (timeRange.value === 'year') source = yts
+  
+  return {
+    labels: source.labels,
+    datasets: [{
+      label: 'Revenue',
+      data: source.values,
+      borderColor: '#D4AF37',
+      backgroundColor: 'rgba(212, 175, 55, 0.1)',
+      fill: true,
+      tension: 0.4,
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      borderWidth: 2
+    }]
+  }
+})
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      mode: 'index',
+      intersect: false,
+      backgroundColor: '#1F2937',
+      titleColor: '#F9FAFB',
+      bodyColor: '#D4AF37',
+      borderColor: '#374151',
+      borderWidth: 1,
+      padding: 12,
+      displayColors: false,
+      callbacks: {
+        label: (context) => ` ₹${context.parsed.y.toLocaleString()}`
+      }
+    }
+  },
+  scales: {
+    x: { grid: { display: false }, ticks: { color: '#9CA3AF', font: { size: 10 } } },
+    y: { 
+      grid: { color: 'rgba(156, 163, 175, 0.1)' }, 
+      beginAtZero: true,
+      ticks: { 
+        color: '#9CA3AF', 
+        font: { size: 10 },
+        callback: (val) => '₹' + (val >= 1000 ? (val/1000).toFixed(1) + 'k' : val)
+      } 
+    }
+  }
 }
 
 const fetchData = async () => {
@@ -491,6 +556,25 @@ onMounted(fetchData)
           <StatCard label="Platform Revenue" :value="fmt(stats.platformFees)" sub="Net fees collected" accent="green" />
           <StatCard label="KYC Pending" :value="pendingKYC.length" sub="Awaiting review" accent="blue" />
           <StatCard label="Security Alerts" :value="flaggedUsers.length" sub="Suspicious customers" accent="red" />
+        </div>
+
+        <!-- Sales Chart -->
+        <div class="card mb-6" style="padding:24px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div>
+              <div class="t-label" style="margin-bottom:4px">Sales Performance</div>
+              <div style="font-size:14px;color:var(--text-3)">Platform revenue based on closed auctions</div>
+            </div>
+            <div class="tab-pill-group">
+               <button v-for="r in ['day','month','year']" :key="r" 
+                 class="pill-btn" :class="{'pill-btn--active': timeRange === r}"
+                 @click="timeRange = r"
+               >{{ r.charAt(0).toUpperCase() + r.slice(1) }}</button>
+            </div>
+          </div>
+          <div style="height:300px">
+            <LineChart :data="chartData" :options="chartOptions" />
+          </div>
         </div>
 
         <div class="two-col">
@@ -1253,7 +1337,13 @@ onMounted(fetchData)
 .tab-badge { background:var(--gold-dim); color:var(--gold); font-size:10px; font-weight:700; padding:1px 6px; border-radius:10px; }
 .tab-badge--red { background:var(--red-dim); color:var(--red); }
 
+.tab-pill-group { display:flex; background:var(--bg-raised); padding:4px; border-radius:10px; border:1px solid var(--border); gap:4px; }
+.pill-btn { border:none; background:transparent; color:var(--text-3); font-size:11px; font-weight:700; padding:6px 12px; border-radius:7px; cursor:pointer; transition:0.2s; text-transform:uppercase; }
+.pill-btn:hover { color:var(--text-2); background:var(--bg-hover); }
+.pill-btn--active { background:var(--gold); color:black; }
+
 .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; margin-bottom:24px; }
+
 
 .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
 
