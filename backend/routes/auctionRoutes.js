@@ -268,6 +268,14 @@ router.post("/admin/closeAuction", verifyToken, verifyAdmin, async (req, res) =>
       }
       await db.collection("fulfillment_orders").doc(orderId).set(fulfillmentData)
 
+      // Send order confirmation email to winner
+      emailService.sendOrderConfirmation(winnerData.email, {
+        orderId,
+        auctionTitle: auctionData.title,
+        amount: finalPrice,
+        username: winnerData.username
+      }).catch(err => console.error("Order confirmation email error:", err.message))
+
       // Background: Generate and email Invoice & Notification
       pdfService.generateInvoice({
         invoiceId: orderId,
@@ -452,6 +460,14 @@ router.post("/admin/disputes/:id/resolve", verifyToken, verifyAdmin, async (req,
       })
     }
     await disputeRef.update({ status, resolution, updatedAt: new Date() })
+
+    // Real-time socket events
+    const io = req.app.get("io")
+    if (io) {
+      io.emit("disputeUpdate", { userId: data.initiatorId || data.userId, disputeId: req.params.id, status })
+      io.emit("adminDataUpdate", { type: "dispute_resolved" })
+    }
+
     res.json({ success: true })
   } catch (err) {
     res.status(500).json({ error: err.message })

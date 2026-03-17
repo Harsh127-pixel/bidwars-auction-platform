@@ -145,12 +145,11 @@ router.get("/profile", verifyToken, async (req, res) => {
 // Update user profile
 router.put("/profile", verifyToken, async (req, res) => {
   try {
-    const { displayName, email, phone, kycStatus } = req.body
+    const { displayName, email, phone } = req.body
     await db.collection("users").doc(req.user.uid).update({
       displayName,
       email,
       phone,
-      kycStatus,
       updatedAt: new Date()
     })
     res.json({ message: "Profile updated successfully" })
@@ -167,7 +166,15 @@ router.post("/kyc/submit", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "ID type and document are required" })
     }
 
-    await db.collection("users").doc(req.user.uid).update({
+    const userRef = db.collection("users").doc(req.user.uid)
+    const userDoc = await userRef.get()
+    const userData = userDoc.data()
+
+    if (userData.isVerified || userData.kycStatus === "pending") {
+      return res.status(400).json({ error: "KYC already in progress or verified. Updates are restricted." })
+    }
+
+    await userRef.update({
       kycStatus: "pending",
       kycData: {
         idType,

@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { upload, cloudinary, usingCloudinaryStorage } = require('../services/cloudinary');
+const { upload, cloudinary } = require('../services/cloudinary');
 const { verifyToken } = require('../middleware/authMiddleware');
 
 const uploadBufferToCloudinary = (file) =>
@@ -10,7 +10,7 @@ const uploadBufferToCloudinary = (file) =>
       {
         folder: 'bidwars',
         resource_type: isPDF ? 'raw' : 'auto',
-        public_id: `${file.fieldname}_${Date.now()}`,
+        public_id: `${file.fieldname}_${Date.now()}_${Math.round(Math.random() * 1000)}`,
         format: isPDF ? 'pdf' : undefined,
       },
       (error, result) => {
@@ -27,20 +27,15 @@ router.post('/upload', verifyToken, upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    let url = req.file.path || req.file.secure_url;
-
-    if (!url && !usingCloudinaryStorage && req.file.buffer) {
-      const uploadResult = await uploadBufferToCloudinary(req.file);
-      url = uploadResult.secure_url;
+    const uploadResult = await uploadBufferToCloudinary(req.file);
+    if (!uploadResult || !uploadResult.secure_url) {
+      return res.status(500).json({ error: 'Cloudinary upload failed' });
     }
 
-    if (!url) {
-      return res.status(500).json({ error: 'Upload failed: no file URL returned' });
-    }
-
-    res.json({ url });
+    res.json({ url: uploadResult.secure_url });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[UPLOAD ERROR]', error);
+    res.status(500).json({ error: error.message || 'Server error during upload' });
   }
 });
 

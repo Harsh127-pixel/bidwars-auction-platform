@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import { useAuthStore } from '../store/auth'
 import { useRouter, useRoute } from 'vue-router'
 import { useNotification } from '../services/notification'
+import { getCaptchaToken } from '../services/captcha'
 
 const email    = ref('')
 const password = ref('')
@@ -22,9 +23,21 @@ const features = [
   { icon: '📜', text: 'Certificate of Authenticity on every win' },
 ]
 
+const captchaError = ref(false)
+
 const handleLogin = async () => {
   loading.value = true
+  captchaError.value = false
   try {
+    // Get captcha token (invisible — no user interaction needed)
+    const captchaToken = await getCaptchaToken('login')
+    if (!captchaToken) {
+      captchaError.value = true
+      notification.add('Security verification failed. Please try again.', 'error')
+      loading.value = false
+      return
+    }
+
     await authStore.login(email.value, password.value, rememberMe.value)
     notification.add('Welcome back!', 'success')
     router.push(route.query.redirect || '/')
@@ -98,6 +111,16 @@ const handleLogin = async () => {
             <span v-if="loading" class="btn-spin"></span>
             {{ loading ? 'Signing in…' : 'Sign In' }}
           </button>
+
+          <div v-if="captchaError" style="font-size:12px;color:var(--red, #EF4444);text-align:center;margin-top:8px">
+            Security check failed. Please refresh and try again.
+          </div>
+
+          <div class="captcha-notice">
+            Protected by reCAPTCHA.
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+          </div>
         </form>
 
         <p class="form-switch">
@@ -196,5 +219,13 @@ const handleLogin = async () => {
 @media (max-width: 768px) {
   .brand-panel { display: none; }
   .form-panel { padding: 40px 24px; }
+}
+
+.captcha-notice {
+  text-align: center; font-size: 11px; color: var(--text-3, #888);
+  margin-top: 12px;
+}
+.captcha-notice a {
+  color: var(--text-3, #888); text-decoration: underline;
 }
 </style>

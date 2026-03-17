@@ -191,6 +191,14 @@ module.exports = (io, db) => {
   };
 
   io.on("connection", (socket) => {
+    socket.on("joinRoom", (room) => {
+      // Security check: only allow joining user rooms
+      if (room.startsWith("user_")) {
+        socket.join(room);
+        console.log(`[Socket] User joined room: ${room}`);
+      }
+    });
+
     socket.on("placeBid", async (data) => await processBid(socket, data));
   });
 };

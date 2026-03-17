@@ -4,6 +4,7 @@ const router = express.Router()
 const { db } = require("../config/firebase")
 const { verifyToken, verifyAdmin, verifyStaff, checkPermission } = require("../middleware/authMiddleware")
 const notificationService = require("../services/notificationService")
+const emailService = require("../services/emailService")
 
 // Get all users
 router.get("/users", verifyToken, verifyStaff, checkPermission("view_users"), async (req, res) => {
@@ -160,6 +161,7 @@ router.put("/users/:userId/cancel-kyc", verifyToken, verifyStaff, checkPermissio
   try {
     const { userId } = req.params
     await db.collection("users").doc(userId).update({
+      isVerified: false,
       kycStatus: "rejected",
       kycNote: "Cancelled by Admin",
       updatedAt: new Date()
@@ -171,19 +173,17 @@ router.put("/users/:userId/cancel-kyc", verifyToken, verifyStaff, checkPermissio
 })
 
 // Forceful Subscription cancellation
-router.put("/users/:userId/cancel-subscription", verifyToken, verifyAdmin, async (req, res) => {
+router.put("/users/:userId/cancel-subscription", verifyToken, verifyStaff, checkPermission("manage_users"), async (req, res) => {
   try {
     const { userId } = req.params
+    const batch = db.batch()
+
+    // 1. Mark any active subscription documents as cancelled
     const subscriptions = await db.collection("subscriptions")
       .where("userId", "==", userId)
       .where("status", "==", "active")
       .get()
     
-    if (subscriptions.empty) {
-      return res.status(404).json({ error: "No active subscription found" })
-    }
-
-    const batch = db.batch()
     subscriptions.forEach(doc => {
       batch.update(doc.ref, {
         status: "cancelled",
@@ -192,7 +192,7 @@ router.put("/users/:userId/cancel-subscription", verifyToken, verifyAdmin, async
       })
     })
     
-    // Also update user doc to reflect inactive preference
+    // 2. Always reset the user document subscription fields
     batch.update(db.collection("users").doc(userId), {
       subscriptionStatus: "inactive",
       membershipTier: "Bronze",
@@ -202,7 +202,7 @@ router.put("/users/:userId/cancel-subscription", verifyToken, verifyAdmin, async
     })
 
     await batch.commit()
-    res.json({ message: "Subscription cancelled by admin" })
+    res.json({ message: "Subscription cancelled by admin successfully" })
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -269,6 +269,18 @@ router.put("/fulfillment/:orderId/deliver", verifyToken, verifyStaff, checkPermi
       )
     }
     
+    // Email the buyer
+    const winnerDoc = await db.collection("users").doc(orderData.winnerId).get()
+    if (winnerDoc.exists) {
+      const winnerData = winnerDoc.data()
+      emailService.sendDeliveredConfirmation(winnerData.email, {
+        orderId,
+        auctionTitle: orderData.auctionTitle,
+        amount: orderData.amount,
+        username: winnerData.username
+      }).catch(err => console.error('[ADMIN] Delivery email error:', err.message))
+    }
+
     res.json({ message: "Order marked as delivered" })
   } catch (error) {
     res.status(500).json({ error: error.message })
@@ -301,6 +313,19 @@ router.put("/fulfillment/:orderId/ship", verifyToken, verifyStaff, checkPermissi
       { auctionId: orderData.auctionId, trackingUrl, orderId }
     )
     
+    // Email the buyer
+    const winnerDoc = await db.collection("users").doc(orderData.winnerId).get()
+    if (winnerDoc.exists) {
+      const winnerData = winnerDoc.data()
+      emailService.sendShippedNotification(winnerData.email, {
+        orderId,
+        auctionTitle: orderData.auctionTitle,
+        courierService,
+        trackingUrl,
+        username: winnerData.username
+      }).catch(err => console.error('[ADMIN] Shipping email error:', err.message))
+    }
+
     res.json({ message: "Order marked as shipped" })
   } catch (error) {
     res.status(500).json({ error: error.message })

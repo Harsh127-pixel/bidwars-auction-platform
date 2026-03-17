@@ -1,9 +1,10 @@
 <!-- FILE: frontend/src/pages/Wallet.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
 import api from '../services/api'
+import socket from '../services/socket'
 import PaymentForm from '../components/PaymentForm.vue'
 import RazorpayModal from '../components/RazorpayModal.vue'
 
@@ -120,23 +121,45 @@ const openTxDetails = (tx) => {
   showTxModal.value = true
 }
 
+const disputeReasons = [
+  'Incorrect amount charged',
+  'Transaction not recognized',
+  'Double charged',
+  'Service not received',
+  'Unauthorized transaction',
+  'Price mismatch',
+  'Other'
+]
+const selectedDisputeReason = ref('')
+
 const raiseDispute = () => {
   disputeReason.value = ''
+  selectedDisputeReason.value = ''
   showDisputeModal.value = true
 }
 
 const submitDispute = async () => {
-  if (!disputeReason.value.trim()) return
+  const reason = selectedDisputeReason.value === 'Other' 
+    ? disputeReason.value.trim() 
+    : selectedDisputeReason.value
+  if (!reason) return notification.add('Please select or enter a reason', 'error')
   disputeLoading.value = true
   try {
-    await api.post('/api/disputes', { 
-      transactionId: selectedTx.value.id, 
-      auctionId: selectedTx.value.auctionId, 
-      reason: disputeReason.value 
+    // 1. Create the dispute
+    await api.post('/api/disputes', {
+      transactionId: selectedTx.value.id,
+      auctionId: selectedTx.value.auctionId,
+      reason
     })
-    notification.add('Dispute raised successfully. Our team will review it.', 'success')
+    // 2. Auto-create a support ticket (chat) linked to the dispute
+    await api.post('/api/support/tickets', {
+      subject: `Dispute: ${fmtType(selectedTx.value.type)} — ${fmt(selectedTx.value.amount)}`,
+      message: `I am disputing transaction ${selectedTx.value.id}.\n\nReason: ${reason}\n\nTransaction details:\n- Type: ${fmtType(selectedTx.value.type)}\n- Amount: ${fmt(selectedTx.value.amount)}\n- Date: ${fmtFullDate(selectedTx.value.createdAt)}`
+    })
+    notification.add('Dispute raised & support chat created. Check your chat for updates.', 'success')
     showDisputeModal.value = false
     showTxModal.value = false
+    await fetchHistory()
   } catch {
     notification.add('Failed to raise dispute.', 'error')
   } finally {
@@ -144,11 +167,10 @@ const submitDispute = async () => {
   }
 }
 
-const canDispute = (tx) => {
-  // Logic: if status is pending/failed OR if it's a debit the user wants to contest
-  if (tx.status === 'pending' || tx.status === 'failed') return true
-  if (tx.amount < 0 && tx.type !== 'BID_HOLD') return true // Contesting debits (except active bid holds which are normal)
-  return false
+const openSupportChat = () => {
+  showTxModal.value = false
+  // Trigger the floating chat to open by emitting a custom event
+  window.dispatchEvent(new CustomEvent('open-support-chat'))
 }
 
 const fmtFullDate = (ts) => {
@@ -166,7 +188,32 @@ const copyUid = () => {
   notification.add('Wallet ID copied to clipboard', 'info')
 }
 
-onMounted(fetchHistory)
+// Real-time wallet updates via Socket.IO
+const handleWalletUpdate = (data) => {
+  if (data.userId === authStore.user?.uid) {
+    authStore.init() // Refresh balance
+    fetchHistory()   // Refresh transactions
+    notification.add(`Wallet updated: ${fmtType(data.type)}`, 'info')
+  }
+}
+
+const handleDisputeUpdate = (data) => {
+  if (data.userId === authStore.user?.uid) {
+    notification.add(`Dispute update: ${data.status}`, data.status === 'resolved' ? 'success' : 'info')
+    fetchHistory()
+  }
+}
+
+onMounted(() => {
+  fetchHistory()
+  socket.on('walletUpdate', handleWalletUpdate)
+  socket.on('disputeUpdate', handleDisputeUpdate)
+})
+
+onUnmounted(() => {
+  socket.off('walletUpdate', handleWalletUpdate)
+  socket.off('disputeUpdate', handleDisputeUpdate)
+})
 </script>
 
 <template>
@@ -338,8 +385,15 @@ onMounted(fetchHistory)
                 <div class="rd-row" style="border:none"><span class="rd-key">New Balance</span><span class="rd-val" style="font-weight:700; font-size:16px">{{ fmt(selectedTx.newBalance) }}</span></div>
               </div>
 
-              <div v-if="canDispute(selectedTx)" class="receipt-footer">
-                <button class="btn-dispute-full" @click="raiseDispute">Raise a Dispute</button>
+              <div v-if="authStore.role !== 'admin' && authStore.role !== 'employee'" class="receipt-footer">
+                <div v-if="selectedTx.disputed" class="disputed-badge">
+                  <span>⚠️ Dispute Active</span>
+                  <button class="btn-chat-support" @click="openSupportChat">Chat with Support →</button>
+                </div>
+                <template v-else>
+                  <button class="btn-dispute-full" @click="raiseDispute">Raise a Dispute</button>
+                  <button class="btn-chat-support" style="margin-top:8px" @click="openSupportChat">Chat with Support</button>
+                </template>
               </div>
             </div>
           </div>
@@ -358,14 +412,27 @@ onMounted(fetchHistory)
             </div>
             <div class="modal-body">
               <div class="field-wrap">
-                <label class="field-label">Why are you disputing this transaction?</label>
-                <textarea v-model="disputeReason" class="field" rows="4" placeholder="Please provide details..."></textarea>
+                <label class="field-label">Select a reason</label>
+                <div class="dispute-reason-grid">
+                  <button v-for="r in disputeReasons" :key="r"
+                    class="reason-chip" :class="{ 'reason-chip--active': selectedDisputeReason === r }"
+                    @click="selectedDisputeReason = r">
+                    {{ r }}
+                  </button>
+                </div>
+              </div>
+              <div v-if="selectedDisputeReason === 'Other'" class="field-wrap" style="margin-top:12px">
+                <label class="field-label">Describe your issue</label>
+                <textarea v-model="disputeReason" class="field" rows="3" placeholder="Please provide details..."></textarea>
+              </div>
+              <div class="dispute-info-note">
+                <span>ℹ️</span> This will also open a support chat so our team can assist you in real-time.
               </div>
             </div>
             <div class="modal-foot">
               <button class="btn-cancel" @click="showDisputeModal = false">Cancel</button>
-              <button class="btn-submit-dispute" :disabled="!disputeReason.trim() || disputeLoading" @click="submitDispute">
-                {{ disputeLoading ? 'Submitting...' : 'Submit Dispute' }}
+              <button class="btn-submit-dispute" :disabled="(!selectedDisputeReason || (selectedDisputeReason === 'Other' && !disputeReason.trim())) || disputeLoading" @click="submitDispute">
+                {{ disputeLoading ? 'Submitting...' : 'Submit Dispute & Open Chat' }}
               </button>
             </div>
           </div>
@@ -602,6 +669,33 @@ onMounted(fetchHistory)
   cursor: pointer; transition: all 0.2s;
 }
 .btn-dispute-full:hover { background: rgba(248,113,113,0.2); }
+.btn-chat-support {
+  width: 100%; padding: 12px; background: var(--gold-dim); border: 1px solid var(--gold-border);
+  border-radius: 10px; color: var(--gold); font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-chat-support:hover { background: rgba(212,175,55,0.15); }
+.disputed-badge {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.3);
+  border-radius: 10px; padding: 10px 14px; margin-bottom: 8px;
+  font-size: 13px; color: var(--orange); font-weight: 600;
+}
+.dispute-reason-grid {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+}
+.reason-chip {
+  padding: 8px 14px; border-radius: 20px; border: 1px solid var(--border-md);
+  background: var(--bg-raised); color: var(--text-2); font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; font-family: var(--font-body);
+}
+.reason-chip:hover { background: var(--bg-hover); color: var(--text); }
+.reason-chip--active { background: var(--orange-dim); border-color: rgba(251,146,60,0.4); color: var(--orange); font-weight: 700; }
+.dispute-info-note {
+  display: flex; align-items: flex-start; gap: 8px; margin-top: 16px;
+  padding: 10px 12px; background: var(--bg-raised); border-radius: 8px;
+  font-size: 12px; color: var(--text-3); line-height: 1.5;
+}
 
 .modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 0 24px 24px; }
 .btn-cancel { padding: 10px 20px; background: var(--bg-raised); border: 1px solid var(--border-md); border-radius: 10px; color: var(--text-2); cursor: pointer; }

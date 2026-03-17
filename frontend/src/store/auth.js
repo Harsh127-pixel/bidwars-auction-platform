@@ -127,14 +127,7 @@ export const useAuthStore = defineStore('auth', {
       return auth.currentUser.getIdToken()
     },
 
-    async requestKYC() {
-      if (!this.user) return false
-      await updateDoc(doc(db, 'users', this.user.uid), {
-        kycStatus: 'pending',
-        kycSubmittedAt: new Date()
-      })
-      return true
-    },
+
 
     async updatePreferences(prefs) {
       if (!this.user) return false

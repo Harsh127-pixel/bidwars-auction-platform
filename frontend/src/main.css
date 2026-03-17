@@ -282,3 +282,26 @@ textarea.field { resize: vertical; min-height: 100px; line-height: 1.6; }
 
 /* ── DIVIDER ── */
 .divider { border: none; border-top: 1px solid var(--border); }
+
+/* ── ADMIN COMPACT HEADER ── */
+.admin-header-compact {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0; gap: 16px; flex-wrap: wrap;
+}
+.admin-header-left { display: flex; align-items: center; }
+
+/* ── ADMIN MOBILE TAB SELECT ── */
+.admin-mobile-tabs { margin-bottom: 16px; }
+.admin-tab-select {
+  width: 100%; padding: 10px 14px;
+  background: var(--bg-input); color: var(--text);
+  border: 1px solid var(--border-md); font-family: var(--font-body);
+  font-size: 14px; font-weight: 600; cursor: pointer; outline: none;
+  -webkit-appearance: none; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center;
+}
+.admin-tab-select:focus { border-color: var(--accent); }
+
+/* ── RECAPTCHA BADGE HIDE (we show our own notice) ── */
+.grecaptcha-badge { visibility: hidden !important; }

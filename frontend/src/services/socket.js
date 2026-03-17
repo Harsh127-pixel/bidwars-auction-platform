@@ -22,8 +22,23 @@ if (typeof window !== "undefined") {
   })
 }
 
+// Join user's personal notification room
+let _currentUserId = null
+export function joinUserRoom(userId) {
+  if (!userId || userId === _currentUserId) return
+  _currentUserId = userId
+  if (socket.connected) {
+    socket.emit('joinRoom', `user_${userId}`)
+  }
+}
+
 socket.on("connect", () => {
   console.log("[Socket] Connected to server")
+  socket._connectErrLogged = false
+  // Re-join room on reconnect
+  if (_currentUserId) {
+    socket.emit('joinRoom', `user_${_currentUserId}`)
+  }
 })
 
 socket.on("connect_error", (err) => {
@@ -32,10 +47,6 @@ socket.on("connect_error", (err) => {
     console.warn("[Socket] Cannot reach backend — real-time updates paused. Retrying...")
     socket._connectErrLogged = true
   }
-})
-
-socket.on("connect", () => {
-  socket._connectErrLogged = false  // reset on successful connect
 })
 
 export default socket

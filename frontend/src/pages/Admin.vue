@@ -1,6 +1,7 @@
 <!-- FILE: frontend/src/pages/Admin.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
@@ -14,7 +15,13 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 
 const authStore = useAuthStore()
 const notification = useNotification()
-const tab = ref('overview')
+const currentRoute = useRoute()
+const tab = ref(currentRoute.query.tab || 'overview')
+
+// Sync tab with URL query param
+watch(() => currentRoute.query.tab, (newTab) => {
+  if (newTab) tab.value = newTab
+})
 
 // Data
 const auctions = ref([])
@@ -506,47 +513,53 @@ const unflagUser = async (userId) => {
 
 const openAudit = async (user) => {
   auditUser.value = user; showAudit.value = true; auditTxs.value = []
-  try { const res = await api.get(`/api/admin/users/${user.uid}/audit`); auditTxs.value = res.data }
+  try { const res = await api.get(`/api/admin/users/${user.id}/audit`); auditTxs.value = res.data }
   catch { notification.add('Could not load audit', 'error') }
 }
 
 const fmtType = (t) => t?.replace(/_/g,' ') || ''
 const fmtDate = (ts) => { try { const d = ts?._seconds ? new Date(ts._seconds*1000) : new Date(ts); return d.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) } catch { return '' } }
 
-onMounted(fetchData)
+// Listen for real-time admin data refresh events
+const handleAdminRefresh = () => {
+  console.log('[Admin] Data refresh triggered via socket')
+  fetchData()
+}
+
+onMounted(() => {
+  fetchData()
+  window.addEventListener('admin-data-refresh', handleAdminRefresh)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('admin-data-refresh', handleAdminRefresh)
+})
 </script>
 
 <template>
   <div class="page-content">
     <div class="page-wrap">
-      <!-- Header -->
-      <div class="admin-header fade-up">
-        <div>
-          <div class="t-label" style="color:var(--gold);margin-bottom:10px">Admin Panel</div>
-          <h1 class="t-display t-title">Auction Management</h1>
+      <!-- Compact Header -->
+      <div class="admin-header-compact fade-up">
+        <div class="admin-header-left">
+          <h1 class="t-display t-title" style="font-size:clamp(20px,3vw,28px);margin:0">
+            {{ tabs.find(t => t.id === tab)?.label || 'Overview' }}
+          </h1>
+          <div class="badge badge-live" style="margin-left:12px"><span class="live-dot"></span>Online</div>
         </div>
         <div class="header-actions">
-           <button class="btn btn-ghost btn-lg" @click="fetchData" :disabled="loading">
-             <v-icon :class="{'btn-spin': loading}">mdi-refresh</v-icon>
-             Refresh Data
+           <button class="btn btn-ghost btn-sm" @click="fetchData" :disabled="loading" style="gap:6px">
+             <v-icon size="16" :class="{'btn-spin': loading}">mdi-refresh</v-icon>
+             <span class="d-none d-sm-inline">Refresh</span>
            </button>
-           <div class="badge badge-live"><span class="live-dot"></span>System Online</div>
         </div>
       </div>
 
-      <!-- Tabs -->
-      <div class="tabs fade-up fade-up-1">
-        <button v-for="t in tabs" :key="t.id"
-          class="tab-btn" :class="{'tab-btn--active': tab === t.id}"
-          @click="tab = t.id">
-          {{ t.label }}
-          <span v-if="t.id==='proposals'" class="tab-badge">
-            {{ pendingAuctions.length + proposals.filter(p => p.status === 'pending').length }}
-          </span>
-          <span v-if="t.id==='disputes' && disputes.length" class="tab-badge">{{ disputes.length }}</span>
-          <span v-if="t.id==='support' && supportTickets.filter(t=>t.status==='open').length" class="tab-badge">{{ supportTickets.filter(t=>t.status==='open').length }}</span>
-          <span v-if="t.id==='flagged' && flaggedUsers.length" class="tab-badge tab-badge--red">{{ flaggedUsers.length }}</span>
-        </button>
+      <!-- Mobile-only tab selector (hidden on desktop where App.vue sub-nav shows) -->
+      <div class="admin-mobile-tabs d-md-none fade-up fade-up-1">
+        <select v-model="tab" class="admin-tab-select">
+          <option v-for="t in tabs" :key="t.id" :value="t.id">{{ t.label }}</option>
+        </select>
       </div>
 
       <!-- OVERVIEW -->
@@ -960,7 +973,6 @@ onMounted(fetchData)
         </div>
       </div>
 
-      <!-- USERS -->
       <div v-if="tab === 'users'" class="fade-up fade-up-2">
         <div class="card" style="overflow:hidden">
           <div style="padding:20px;border-bottom:1px solid var(--border)">
@@ -969,7 +981,7 @@ onMounted(fetchData)
           <table v-if="allUsers.length" class="data-table">
             <thead><tr><th>User</th><th style="text-align:right">Balance</th><th style="text-align:center">KYC</th><th style="text-align:right">Actions</th></tr></thead>
             <tbody>
-              <tr v-for="u in allUsers" :key="u.uid">
+              <tr v-for="u in allUsers" :key="u.id">
                 <td>
                   <div style="font-weight:600;font-size:14px">{{ u.username }}</div>
                   <div class="t-mono" style="margin-bottom:4px">{{ u.email }}</div>
@@ -987,12 +999,12 @@ onMounted(fetchData)
                 <td style="text-align:right">
                   <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
                     <span v-if="u.isFlagged" class="badge badge-red" title="Suspicious activity detected">FLAGGED</span>
-                    <button v-if="u.kycStatus === 'pending' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="processKYC(u.uid,'approved')">Approve KYC</button>
-                    <button v-if="(u.kycStatus === 'approved' || u.isVerified) && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="cancelKYC(u.uid)">Cancel KYC</button>
-                    <button v-if="u.subscriptionStatus === 'active' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="cancelSubscription(u.uid)">Cancel Sub</button>
-                    <button v-if="u.role !== 'admin' && authStore.role === 'admin'" class="btn btn-gold btn-sm" @click="promoteToAdmin(u.uid)">Make Admin</button>
-                    <button v-if="u.status !== 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="toggleUserStatus(u.uid, 'blocked')">Block</button>
-                    <button v-else-if="u.status === 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="toggleUserStatus(u.uid, 'active')">Unblock</button>
+                    <button v-if="u.kycStatus === 'pending' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="processKYC(u.id,'approved')">Approve KYC</button>
+                    <button v-if="(u.kycStatus === 'approved' || u.isVerified) && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="cancelKYC(u.id)">Cancel KYC</button>
+                    <button v-if="u.subscriptionStatus === 'active' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="cancelSubscription(u.id)">Cancel Sub</button>
+                    <button v-if="u.role !== 'admin' && authStore.role === 'admin'" class="btn btn-gold btn-sm" @click="promoteToAdmin(u.id)">Make Admin</button>
+                    <button v-if="u.status !== 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="toggleUserStatus(u.id, 'blocked')">Block</button>
+                    <button v-else-if="u.status === 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="toggleUserStatus(u.id, 'active')">Unblock</button>
                     <button v-if="hasPermission('view_audit')" class="btn btn-ghost btn-sm" @click="openAudit(u)">Audit</button>
                   </div>
                 </td>

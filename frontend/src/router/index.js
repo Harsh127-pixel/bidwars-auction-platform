@@ -72,8 +72,8 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (isStaff) {
-    // Staff should ONLY be on /admin or /support or login/logout related
-    if (!isAdminRoute && !['Support', 'Terms', 'Privacy'].includes(to.name)) {
+    // Staff should ONLY be on /admin or login/logout related (Terms and Privacy are also fine)
+    if (!isAdminRoute && !['Terms', 'Privacy'].includes(to.name)) {
       return next('/admin')
     }
   } else {

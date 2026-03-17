@@ -118,6 +118,12 @@ router.post("/tickets/:id/reply", verifyToken, async (req, res) => {
 
     await ticketRef.update(updates)
 
+    // Socket real-time update
+    const io = req.app.get("io")
+    if (io) {
+      io.emit("ticketUpdate", { ticketId: id, reply })
+    }
+
     // Notify user if it's an admin reply
     if (isAdminReply) {
       await db.collection("notifications").add({
@@ -162,6 +168,12 @@ router.put("/admin/tickets/:id", verifyToken, verifyStaff, checkPermission("mana
     })
 
     res.json({ message: "Ticket updated" })
+
+    // Notify admin panel to refresh
+    const io = req.app.get("io")
+    if (io) {
+      io.emit("adminDataUpdate", { type: "ticket_resolved" })
+    }
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -196,6 +208,13 @@ router.post("/disputes", verifyToken, async (req, res) => {
       })
     } catch (err) {
       console.warn("Could not link dispute to transaction:", err.message)
+    }
+
+    // Real-time socket events
+    const io = req.app.get("io")
+    if (io) {
+      io.emit("disputeUpdate", { userId: req.user.uid, disputeId: docRef.id, status: "pending" })
+      io.emit("adminDataUpdate", { type: "new_dispute" })
     }
 
     res.json({ id: docRef.id, ...dispute })

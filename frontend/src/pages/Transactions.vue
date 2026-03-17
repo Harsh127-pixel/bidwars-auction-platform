@@ -176,7 +176,7 @@ onMounted(fetchHistory)
               <div class="rd-row"><span>New Balance</span><span class="font-bold">{{ fmt(selectedTx.newBalance) }}</span></div>
 
               <div class="rd-actions">
-                <button v-if="canDispute(selectedTx)" class="btn-dispute" @click="openDispute">Raise Dispute</button>
+                <button v-if="canDispute(selectedTx) && authStore.role !== 'admin' && authStore.role !== 'employee'" class="btn-dispute" @click="openDispute">Raise Dispute</button>
                 <div v-else-if="!selectedTx.auctionId" class="rd-hint">Dispute available for auction-linked debits only.</div>
                 <div v-else-if="selectedTx.disputed || selectedTx.disputeId" class="rd-hint">A dispute is already linked to this transaction.</div>
               </div>
