@@ -2,10 +2,11 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../services/api'
+import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const notification = useNotification()
 const email = ref('')
 const loading = ref(false)
@@ -15,11 +16,15 @@ const handleReset = async () => {
   if (!email.value) return
   loading.value = true
   try {
-    await api.post('/api/users/forgot-password', { email: email.value })
+    await authStore.resetPassword(email.value)
     sent.value = true
     notification.add('Password reset link sent! Check your inbox.', 'success')
   } catch (error) {
-    notification.add('Failed to send reset link: ' + (error.response?.data?.error || error.message), 'error')
+    if (error.code === 'auth/user-not-found') {
+      notification.add('No user found with this email.', 'error')
+    } else {
+      notification.add('Failed to send reset link: ' + (error.message || 'Unknown error'), 'error')
+    }
   } finally {
     loading.value = false
   }

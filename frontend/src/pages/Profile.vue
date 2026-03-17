@@ -16,6 +16,9 @@ const wonItems = ref([])
 const notifications = ref([])
 const activeTab = ref('account')
 
+const newPassword = ref('')
+const pwdLoading = ref(false)
+
 const kycLoading = ref(false)
 const kycForm = ref({
   idType: 'Aadhaar',
@@ -99,6 +102,23 @@ const logout = async () => {
     notification.add('Logged out successfully.', 'success')
     router.push('/login')
   } catch { notification.add('Logout failed.', 'error') }
+}
+
+const handleChangePassword = async () => {
+  if (!newPassword.value || newPassword.value.length < 6) {
+    notification.add('Password must be at least 6 characters long.', 'error')
+    return
+  }
+  pwdLoading.value = true
+  try {
+    await authStore.changePassword(newPassword.value)
+    notification.add('Password updated successfully.', 'success')
+    newPassword.value = ''
+  } catch (error) {
+    notification.add('Failed to update password: ' + (error.message || 'Unknown Error'), 'error')
+  } finally {
+    pwdLoading.value = false
+  }
 }
 
 const confirmReceipt = async (id) => {
@@ -418,7 +438,7 @@ onMounted(loadData)
                 <span class="toggle-track"></span>
               </label>
             </div>
-            <div class="pref-row" style="border:none">
+            <div class="pref-row">
               <div class="pref-row__info">
                 <div class="pref-row__title">Two-Factor Authentication</div>
                 <div class="pref-row__sub">Add an extra layer of security to your account</div>
@@ -429,6 +449,20 @@ onMounted(loadData)
                   @change="authStore.updatePreferences({ twoFactor: $event.target.checked })" />
                 <span class="toggle-track"></span>
               </label>
+            </div>
+
+            <div class="card-section-label" style="margin-top:24px">Password & Security</div>
+            <div class="pref-row" style="border:none;flex-direction:column;align-items:flex-start;gap:12px;">
+              <div class="pref-row__info" style="width:100%">
+                <div class="pref-row__title">Change Password</div>
+                <div class="pref-row__sub">Update your account password securely.</div>
+              </div>
+              <form @submit.prevent="handleChangePassword" style="width:100%; display:flex; flex-direction:column; gap:12px;">
+                <input v-model="newPassword" type="password" placeholder="New Password (min 6 chars)" class="field" required minlength="6" style="max-width:300px" />
+                <button type="submit" class="btn-action btn-action--primary" style="align-self:flex-start; width:auto; padding: 10px 20px" :disabled="pwdLoading">
+                  {{ pwdLoading ? 'Updating...' : 'Update Password' }}
+                </button>
+              </form>
             </div>
           </div>
         </div>

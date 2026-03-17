@@ -8,7 +8,9 @@ import {
   onAuthStateChanged,
   setPersistence,
   browserSessionPersistence,
-  browserLocalPersistence
+  browserLocalPersistence,
+  sendPasswordResetEmail,
+  updatePassword
 } from 'firebase/auth'
 import { doc, getDoc, setDoc, updateDoc, onSnapshot } from 'firebase/firestore'
 
@@ -134,6 +136,17 @@ export const useAuthStore = defineStore('auth', {
       await updateDoc(doc(db, 'users', this.user.uid), {
         preferences: { ...this.user.preferences, ...prefs }
       })
+      return true
+    },
+
+    async resetPassword(email) {
+      await sendPasswordResetEmail(auth, email)
+      return true
+    },
+
+    async changePassword(newPassword) {
+      if (!auth.currentUser) throw new Error('User not logged in')
+      await updatePassword(auth.currentUser, newPassword)
       return true
     },
 
