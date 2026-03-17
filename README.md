@@ -3,6 +3,9 @@
 > A high-fidelity, institutional-grade auction platform for repossessed assets, digital collectibles, and luxury goods. Built with real-time bidding, a premium **Elite Indigo** design system, and **Material Design 3** principles.
 
 🔗 **Live Demo**: [bidwars.gaurangjadoun.in](https://bidwars.gaurangjadoun.in)
+For testing the app:
+admin_login:admin@bidwars.elite
+admin_password:Admin@123
 
 ---
 
