@@ -225,4 +225,4 @@ This project is currently unlicensed. Contact the repository owner for usage per
 
 ---
 
-*Built with ❤️ by [Harsh127-pixel](https://github.com/Harsh127-pixel)*,[github.com/gj2908](https://github.com/gj2908)*,[Jahnvitivari12](https://github.com/Jahnvitivari12)*
+*Built with ❤️ by [Harsh127-pixel](https://github.com/Harsh127-pixel)*,[gj2908](https://github.com/gj2908)*,[Jahnvitivari12](https://github.com/Jahnvitivari12)*
