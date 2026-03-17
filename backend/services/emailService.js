@@ -55,6 +55,66 @@ class EmailService {
       return false;
     }
   }
+
+  /**
+   * Sends an Invoice for a transaction
+   */
+  async sendInvoice(to, description, amount, pdfBuffer) {
+    const mailOptions = {
+      from: '"BidWars Payments" <billing@bidwars.platform>',
+      to: to,
+      subject: `🧾 Tax Invoice: ${description}`,
+      text: `Your transaction of ₹${amount.toLocaleString()} for "${description}" was successful. Please find the attached tax invoice for your records.`,
+      attachments: [
+        {
+          filename: `Invoice_${description.replace(/\s+/g, '_')}.pdf`,
+          content: pdfBuffer
+        }
+      ]
+    };
+
+    if (this.isMock) {
+      console.log(`[MOCK EMAIL] To: ${to} | Subject: ${mailOptions.subject}`);
+      return true;
+    }
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`[EMAIL] Invoice sent to ${to}`);
+      return true;
+    } catch (err) {
+      console.error('[EMAIL ERROR]', err);
+      return false;
+    }
+  }
+
+  /**
+   * Generic send mail method
+   */
+  async sendMail(options) {
+    const mailOptions = {
+      from: options.from || '"BidWars Platform" <no-reply@bidwars.platform>',
+      to: options.to,
+      subject: options.subject,
+      text: options.text,
+      html: options.html,
+      attachments: options.attachments || []
+    };
+
+    if (this.isMock) {
+      console.log(`[MOCK EMAIL] To: ${options.to} | Subject: ${options.subject}`);
+      return true;
+    }
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`[EMAIL] Mail sent to ${options.to}`);
+      return true;
+    } catch (err) {
+      console.error('[EMAIL ERROR]', err);
+      return false;
+    }
+  }
 }
 
 module.exports = new EmailService();

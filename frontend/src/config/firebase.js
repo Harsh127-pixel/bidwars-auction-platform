@@ -14,18 +14,23 @@ const firebaseConfig = {
 }
 
 // Validate at boot so missing vars surface immediately as a clear error
-const missing = Object.entries(firebaseConfig)
-  .filter(([, v]) => !v)
-  .map(([k]) => `VITE_${k.replace(/([A-Z])/g, '_$1').toUpperCase()}`)
+const required = ['apiKey', 'authDomain', 'projectId', 'appId']
+const missing = required.filter(k => !firebaseConfig[k])
 
-if (missing.length) {
-  console.error(
-    '[Firebase] Missing env vars:', missing.join(', '),
-    '\nCheck frontend/.env — copy frontend/.env.example if needed.'
-  )
+if (missing.length > 0) {
+  console.error('[Firebase] CRITICAL ERROR: Missing required environment variables:', missing.join(', '))
 }
 
-const app  = initializeApp(firebaseConfig)
-export const auth = getAuth(app)
-export const db   = getFirestore(app)
+let app, auth, db
+
+try {
+  app  = initializeApp(firebaseConfig)
+  auth = getAuth(app)
+  db   = getFirestore(app)
+} catch (err) {
+  console.error('[Firebase] Initialization failed:', err.message)
+  // Non-breaking fallback so the app shell can at least render a "Site under maintenance" or similar
+}
+
+export { auth, db }
 export default app

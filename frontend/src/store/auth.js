@@ -24,12 +24,13 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     // Call once at app startup (App.vue, top-level — NOT in onMounted)
     init() {
-      if (this._authInitialized) return
+      if (this._authInitialized || !auth) return
       this._authInitialized = true
 
       onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
           await this._attachUserListener(firebaseUser.uid)
+          this._registerDevice(firebaseUser.uid)
         } else {
           this._detachUserListener()
           this.user = null
@@ -68,6 +69,16 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async _registerDevice(uid) {
+      const deviceId = navigator.userAgent
+      try {
+        await updateDoc(doc(db, 'users', uid), {
+          lastDeviceId: deviceId,
+          lastActive: new Date()
+        })
+      } catch (err) { console.warn('Device registration failed', err) }
+    },
+
     async login(email, password, rememberMe = false) {
       await setPersistence(auth, rememberMe ? browserLocalPersistence : browserSessionPersistence)
       const credential = await signInWithEmailAndPassword(auth, email, password)
@@ -75,7 +86,7 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
-    async register(email, password, username) {
+    async register(email, password, username, phone = '') {
       const credential = await createUserWithEmailAndPassword(auth, email, password)
       const uid = credential.user.uid
 
@@ -84,6 +95,7 @@ export const useAuthStore = defineStore('auth', {
       await setDoc(doc(db, 'users', uid), {
         username,
         email,
+        phone,
         role: isAdminEmail ? 'admin' : 'bidder',
         credits: 5000,
         heldCredits: 0,

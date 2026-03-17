@@ -5,12 +5,14 @@ import { io } from "socket.io-client"
 import { SOCKET_URL } from "../config/api"
 
 const socket = io(SOCKET_URL, {
-  autoConnect: false,          // don't connect until we call socket.connect()
+  autoConnect: false,
   reconnection: true,
-  reconnectionAttempts: 10,    // give up after 10 tries (not infinite)
-  reconnectionDelay: 2000,     // wait 2s between attempts
-  reconnectionDelayMax: 10000, // cap at 10s
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+  reconnectionDelayMax: 10000,
   timeout: 10000,
+  transports: ["websocket", "polling"], // Prioritize WebSocket
+  withCredentials: true
 })
 
 // Connect once the DOM is ready — gives the backend time to start

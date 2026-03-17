@@ -9,6 +9,12 @@ import AuctionDetail from '../pages/AuctionDetail.vue'
 import Admin from '../pages/Admin.vue'
 import Profile from '../pages/Profile.vue'
 import Wallet from '../pages/Wallet.vue'
+import Sell from '../pages/Sell.vue'
+import ForgotPassword from '../pages/ForgotPassword.vue'
+import Terms from '../pages/Terms.vue'
+import Privacy from '../pages/Privacy.vue'
+import Support from '../pages/Support.vue'
+import AdminLogin from '../pages/AdminLogin.vue'
 
 const routes = [
   { path: '/', redirect: '/auctions' },
@@ -20,6 +26,12 @@ const routes = [
   { path: '/admin', component: Admin, name: 'Admin', meta: { requiresAuth: true, requiresAdmin: true } },
   { path: '/profile', component: Profile, name: 'Profile', meta: { requiresAuth: true } },
   { path: '/wallet', component: Wallet, name: 'Wallet', meta: { requiresAuth: true } },
+  { path: '/sell', component: Sell, name: 'Sell', meta: { requiresAuth: true } },
+  { path: '/forgot-password', component: ForgotPassword, name: 'ForgotPassword' },
+  { path: '/terms', component: Terms, name: 'Terms' },
+  { path: '/privacy', component: Privacy, name: 'Privacy' },
+  { path: '/support', component: Support, name: 'Support' },
+  { path: '/admin/login', component: AdminLogin, name: 'AdminLogin' },
   { path: '/:pathMatch(.*)*', redirect: '/auctions' },
 ]
 
@@ -50,8 +62,13 @@ router.beforeEach(async (to, from, next) => {
   }
 
   if (to.meta.requiresAuth && !authStore.user) {
-    next({ path: '/login', query: { redirect: to.fullPath } })
-  } else if (to.meta.requiresAdmin && authStore.role !== 'admin') {
+    // If trying to access admin area without login, go to admin login
+    if (to.path.startsWith('/admin')) {
+      next('/admin/login')
+    } else {
+      next({ path: '/login', query: { redirect: to.fullPath } })
+    }
+  } else if (to.meta.requiresAdmin && !(authStore.role === 'admin' || authStore.role === 'employee')) {
     next('/auctions')
   } else {
     next()

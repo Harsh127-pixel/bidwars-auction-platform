@@ -5,7 +5,7 @@ const express = require("express")
 const cors = require("cors")
 const http = require("http")
 const { Server } = require("socket.io")
-const db = require("./config/firebase")
+const { db } = require("./config/firebase")
 
 const app = express()
 
@@ -51,18 +51,33 @@ const userRoutes = require("./routes/userRoutes")
 const adminRoutes = require("./routes/adminRoutes")
 const paymentRoutes = require("./routes/paymentRoutes")
 const proposalRoutes = require("./routes/proposalRoutes")
+const supportRoutes = require("./routes/supportRoutes")
+const uploadRoutes = require("./routes/uploadRoutes")
+const walletRoutes = require("./routes/walletRoutes")
 
 app.use("/api", auctionRoutes)
 app.use("/api/users", userRoutes)
 app.use("/api/admin", adminRoutes)
 app.use("/api/payments", paymentRoutes)
 app.use("/api/proposals", proposalRoutes)
+app.use("/api/support", supportRoutes)
+app.use("/api/media", uploadRoutes)
+app.use("/api/wallet", walletRoutes)
 
 const server = http.createServer(app)
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true)
+      if (
+        allowedOrigins.some(o => origin && origin.startsWith(o)) ||
+        (process.env.NODE_ENV !== "production" && origin && origin.startsWith("http://localhost"))
+      ) {
+        return callback(null, true)
+      }
+      callback(new Error(`CORS blocked for Socket.io: ${origin}`))
+    },
     methods: ["GET", "POST"],
     credentials: true
   }

@@ -1,15 +1,27 @@
 <!-- FILE: frontend/src/pages/Wallet.vue -->
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../store/auth'
+import { useNotification } from '../services/notification'
+import api from '../services/api'
 import PaymentForm from '../components/PaymentForm.vue'
+import RazorpayModal from '../components/RazorpayModal.vue'
 
 const authStore = useAuthStore()
 const notification = useNotification()
 const history = ref([])
 const loading = ref(true)
-const topupAmount = ref(100000)
+const topupAmount = ref(100)
 const topupLoading = ref(false)
 const showTopup = ref(false)
+const showRzp = ref(false)
+const rzpData = ref({ orderId: '', key: '', amount: 0 })
 const historyFilter = ref('all')
+const selectedTx = ref(null)
+const showTxModal = ref(false)
+const showDisputeModal = ref(false)
+const disputeReason = ref('')
+const disputeLoading = ref(false)
 
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
 const totalWealth = computed(() => (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0))
@@ -25,16 +37,47 @@ const filteredHistory = computed(() => {
   return history.value
 })
 
-const simulateTopup = async () => {
-  if (!topupAmount.value || topupAmount.value <= 0) return
+const handleTopup = async () => {
+  if (!topupAmount.value || topupAmount.value < 100) return notification.add('Min ₹100', 'error')
   topupLoading.value = true
   try {
-    await api.post('/api/wallet/topup', { amount: topupAmount.value })
-    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added!`, 'success')
-    showTopup.value = false
+    const res = await api.post('/api/payments/create-order', { amount: topupAmount.value * 100 })
+    rzpData.value = { 
+      orderId: res.data.orderId || res.data.id, 
+      key: res.data.key, 
+      amount: topupAmount.value * 100 
+    }
+    showRzp.value = true
+  } catch {
+    notification.add('Failed to initiate topup.', 'error')
+  } finally {
+    topupLoading.value = false
+  }
+}
+
+const simulateTopup = handleTopup
+
+const handlePaymentSuccess = async (data) => {
+  topupLoading.value = true
+  try {
+    // 2. Verify payment on server
+    await api.post('/api/payments/verify', data)
+    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added to your wallet!`, 'success')
+    authStore.init() // Refresh user data for balance
     await fetchHistory()
-  } catch { notification.add('Top-up failed.', 'error') }
-  finally { topupLoading.value = false }
+  } catch (e) {
+    notification.add('Payment verification failed.', 'error')
+  } finally {
+    topupLoading.value = false
+  }
+}
+
+const handlePaymentError = (err) => {
+  notification.add(err.message || 'Payment failed', 'error')
+}
+
+const handlePaymentClose = () => {
+  // notification.add('Payment cancelled', 'info')
 }
 
 const fetchHistory = async () => {
@@ -68,6 +111,51 @@ const fmtType = (type) => ({
 const txIcon = (type) => ({ WALLET_TOPUP:'↓', BID_HOLD:'⊠', BID_REFUND:'↩',
   BUY_IT_NOW:'⚡', BID_WIN_FINAL:'★', ESCROW_PAYOUT:'✓', DISPUTE_REFUND:'↩', ADMIN_TOPUP:'⊕' }[type] || '•')
 
+const openTxDetails = (tx) => {
+  selectedTx.value = tx
+  showTxModal.value = true
+}
+
+const raiseDispute = () => {
+  disputeReason.value = ''
+  showDisputeModal.value = true
+}
+
+const submitDispute = async () => {
+  if (!disputeReason.value.trim()) return
+  disputeLoading.value = true
+  try {
+    await api.post('/api/disputes', { 
+      transactionId: selectedTx.value.id, 
+      auctionId: selectedTx.value.auctionId, 
+      reason: disputeReason.value 
+    })
+    notification.add('Dispute raised successfully. Our team will review it.', 'success')
+    showDisputeModal.value = false
+    showTxModal.value = false
+  } catch {
+    notification.add('Failed to raise dispute.', 'error')
+  } finally {
+    disputeLoading.value = false
+  }
+}
+
+const canDispute = (tx) => {
+  // Logic: if status is pending/failed OR if it's a debit the user wants to contest
+  if (tx.status === 'pending' || tx.status === 'failed') return true
+  if (tx.amount < 0 && tx.type !== 'BID_HOLD') return true // Contesting debits (except active bid holds which are normal)
+  return false
+}
+
+const fmtFullDate = (ts) => {
+  if (!ts) return ''
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
+  return d.toLocaleString('en-IN', { 
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  })
+}
+
 onMounted(fetchHistory)
 </script>
 
@@ -75,41 +163,19 @@ onMounted(fetchHistory)
   <div class="wallet-page">
 
     <!-- HERO -->
-    <div class="balance-hero">
+    <div class="balance-hero balance-hero--centered">
       <div class="balance-hero__glow"></div>
-      <div class="page-wrap">
-        <div class="balance-hero__inner">
-          <div class="balance-hero__left">
-            <div class="hero-eyebrow">Available Balance</div>
-            <div class="hero-amount">{{ fmt(authStore.user?.credits) }}</div>
-            <div class="hero-chips">
-              <span class="hero-chip">
-                <span class="chip-dot chip-dot--orange"></span>
-                {{ fmt(authStore.user?.heldCredits) }} in escrow
-              </span>
-              <span class="hero-chip">
-                <span class="chip-dot chip-dot--muted"></span>
-                {{ fmt(totalWealth) }} total
-              </span>
-            </div>
-          </div>
-          <div class="balance-hero__right">
-            <div class="ring-wrap">
-              <svg viewBox="0 0 80 80" class="ring-svg">
-                <circle cx="40" cy="40" r="34" class="ring-track"/>
-                <circle cx="40" cy="40" r="34" class="ring-fill"
-                  :style="`stroke-dashoffset:${213.6 - 213.6 * availablePct / 100}`"/>
-              </svg>
-              <div class="ring-label">
-                <div class="ring-pct">{{ availablePct }}%</div>
-                <div class="ring-sub">free</div>
-              </div>
-            </div>
-            <button class="btn-add" @click="showTopup = true">
-              <span class="btn-add__plus">+</span> Add Funds
+      <div class="page-wrap hero-wrap">
+          <div class="balance-card fade-up">
+            <div class="card-glow"></div>
+            <div class="bc-label">Available Balance</div>
+            <div class="bc-val bc-val--huge">{{ fmt(authStore.user?.credits) }}</div>
+            <div class="bc-sub">Escrow (Held): {{ fmt(authStore.user?.heldCredits) }}</div>
+            
+            <button class="btn-add-funds" @click="showTopup = true">
+              Add Funds +
             </button>
           </div>
-        </div>
       </div>
     </div>
 
@@ -129,10 +195,6 @@ onMounted(fetchHistory)
         </div>
       </div>
 
-      <!-- PAYMENT FORM -->
-      <div class="payment-section fade-up fade-up-1">
-        <PaymentForm @payment-success="fetchHistory" />
-      </div>
 
       <!-- HISTORY -->
       <div class="history-card fade-up fade-up-2">
@@ -153,7 +215,7 @@ onMounted(fetchHistory)
         </div>
 
         <TransitionGroup v-else-if="filteredHistory.length" name="tx" tag="div" class="tx-list">
-          <div v-for="tx in filteredHistory" :key="tx.id" class="tx-row">
+          <div v-for="tx in filteredHistory" :key="tx.id" class="tx-row" @click="openTxDetails(tx)">
             <div class="tx-ico" :class="tx.amount >= 0 ? 'tx-ico--cr' : 'tx-ico--db'">{{ txIcon(tx.type) }}</div>
             <div class="tx-info">
               <div class="tx-name">{{ fmtType(tx.type) }}</div>
@@ -175,34 +237,31 @@ onMounted(fetchHistory)
           <div class="tx-empty__icon">◈</div>
           <div class="tx-empty__title">No transactions yet</div>
           <div class="tx-empty__sub">Add funds to get started</div>
-          <button class="btn-add btn-add--sm" style="margin-top:16px" @click="showTopup=true">+ Add Funds</button>
         </div>
       </div>
 
     </div>
 
-    <!-- ADD FUNDS DRAWER -->
+    <RazorpayModal
+      v-model="showRzp"
+      :amount="rzpData.amount"
+      :order-id="rzpData.orderId"
+      :razorpay-key="rzpData.key"
+      @success="handlePaymentSuccess"
+      @error="handlePaymentError"
+      @close="handlePaymentClose"
+    />
+
+    <!-- ADD FUNDS MODAL -->
     <Teleport to="body">
-      <Transition name="drawer">
-        <div v-if="showTopup" class="drawer-overlay" @click.self="showTopup = false">
-          <div class="drawer">
-            <div class="drawer-handle"></div>
-            <div class="drawer-head">
-              <h3 class="drawer-title">Add Funds</h3>
-              <button class="drawer-close" @click="showTopup = false">✕</button>
+      <Transition name="modal">
+        <div v-if="showTopup" class="modal-overlay" @click.self="showTopup = false">
+          <div class="modal deposit-modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Add Funds</h3>
+              <button class="modal-close" @click="showTopup = false">✕</button>
             </div>
-            <div class="drawer-body">
-
-              <div class="balance-preview">
-                <div class="preview-label">Current Balance</div>
-                <div class="preview-val">{{ fmt(authStore.user?.credits) }}</div>
-                <Transition name="fade">
-                  <div v-if="topupAmount > 0" class="preview-after">
-                    → {{ fmt((authStore.user?.credits || 0) + topupAmount) }} after deposit
-                  </div>
-                </Transition>
-              </div>
-
+            <div class="modal-body">
               <div class="quick-grid">
                 <button v-for="amt in quickAmounts" :key="amt"
                   class="quick-chip" :class="{'quick-chip--on': topupAmount === amt}"
@@ -212,27 +271,88 @@ onMounted(fetchHistory)
               </div>
 
               <div class="field-wrap" style="margin-top:20px">
-                <label class="field-label">Custom amount</label>
+                <label class="field-label">CUSTOM AMOUNT</label>
                 <div class="amt-wrap">
                   <span class="amt-prefix">₹</span>
                   <input v-model.number="topupAmount" type="number" min="100"
                     class="field amt-field" placeholder="0" />
                 </div>
               </div>
-
-              <button class="btn-deposit" :disabled="topupLoading || !topupAmount || topupAmount <= 0" @click="simulateTopup">
+            </div>
+            <div class="modal-foot">
+              <button class="btn btn-ghost" @click="showTopup = false">Cancel</button>
+              <button class="btn btn-primary btn-deposit-full" 
+                :disabled="topupLoading || !topupAmount || topupAmount < 100" 
+                @click="handleTopup">
                 <span v-if="topupLoading" class="dep-spin"></span>
-                <span v-else>↓</span>
-                {{ topupLoading ? 'Processing…' : `Deposit ${topupAmount > 0 ? fmt(topupAmount) : ''}` }}
+                Proceed to Payment
               </button>
-
-              <div class="drawer-note">No processing fees · Instant credit</div>
             </div>
           </div>
         </div>
       </Transition>
     </Teleport>
 
+    <!-- TRANSACTION DETAILS MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showTxModal" class="modal-overlay" @click.self="showTxModal = false">
+          <div class="modal tx-modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Transaction Receipt</h3>
+              <button class="modal-close" @click="showTxModal = false">✕</button>
+            </div>
+            <div v-if="selectedTx" class="modal-body">
+              <div class="receipt-header">
+                <div class="receipt-icon" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">{{ txIcon(selectedTx.type) }}</div>
+                <div class="receipt-type">{{ fmtType(selectedTx.type) }}</div>
+                <div class="receipt-amt" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">
+                   {{ selectedTx.amount >= 0 ? '+' : '' }}{{ fmt(selectedTx.amount) }}
+                </div>
+              </div>
+              
+              <div class="receipt-details">
+                <div class="rd-row"><span class="rd-key">Transaction ID</span><span class="rd-val t-mono">{{ selectedTx.id }}</span></div>
+                <div v-if="selectedTx.auctionId" class="rd-row"><span class="rd-key">Asset ID</span><span class="rd-val t-mono">{{ selectedTx.auctionId }}</span></div>
+                <div class="rd-row"><span class="rd-key">Status</span><span class="rd-val"><span class="badge" :class="selectedTx.status === 'failed' ? 'badge-red' : 'badge-live'">{{ (selectedTx.status || 'SUCCESS').toUpperCase() }}</span></span></div>
+                <div class="rd-row"><span class="rd-key">Date & Time</span><span class="rd-val">{{ fmtFullDate(selectedTx.createdAt) }}</span></div>
+                <div class="rd-row" style="border:none"><span class="rd-key">New Balance</span><span class="rd-val" style="font-weight:700">{{ fmt(selectedTx.newBalance) }}</span></div>
+              </div>
+
+              <div v-if="canDispute(selectedTx)" class="receipt-footer">
+                <button class="btn-dispute-full" @click="raiseDispute">Raise a Dispute</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- DISPUTE MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showDisputeModal" class="modal-overlay" @click.self="showDisputeModal = false">
+          <div class="modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Raise a Dispute</h3>
+              <button class="modal-close" @click="showDisputeModal = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="field-wrap">
+                <label class="field-label">Why are you disputing this transaction?</label>
+                <textarea v-model="disputeReason" class="field" rows="4" placeholder="Please provide details..."></textarea>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn-cancel" @click="showDisputeModal = false">Cancel</button>
+              <button class="btn-submit-dispute" :disabled="!disputeReason.trim() || disputeLoading" @click="submitDispute">
+                {{ disputeLoading ? 'Submitting...' : 'Submit Dispute' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -240,58 +360,36 @@ onMounted(fetchHistory)
 .wallet-page { min-height: 100vh; background: var(--bg); }
 
 /* HERO */
-.balance-hero { position: relative; padding: 44px 0 52px; overflow: hidden; }
+.balance-hero { position: relative; padding: 64px 0 82px; overflow: hidden; background: var(--bg-raised); border-bottom: 1px solid var(--border); }
+.balance-hero--centered .hero-wrap { justify-content: center; }
+.hero-wrap { display: flex; align-items: stretch; gap: 24px; flex-wrap: wrap; }
 .balance-hero__glow {
   position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 70% 120% at 5% 60%, rgba(251,146,60,0.09) 0%, transparent 65%),
-              radial-gradient(ellipse 50% 70% at 95% 10%, rgba(251,146,60,0.05) 0%, transparent 55%);
+  background: radial-gradient(ellipse 70% 120% at 50% 60%, rgba(212,175,55,0.08) 0%, transparent 65%),
+              radial-gradient(ellipse 50% 70% at 95% 10%, rgba(212,175,55,0.03) 0%, transparent 55%);
 }
-.balance-hero__inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-.hero-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange); margin-bottom: 12px; }
-.hero-amount {
-  font-family: var(--font-display); font-size: clamp(38px, 6vw, 68px);
-  font-weight: 600; color: var(--text); letter-spacing: -0.02em; line-height: 1; margin-bottom: 18px;
-  animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
-}
-@keyframes slideUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
-.hero-chips { display: flex; gap: 10px; flex-wrap: wrap; }
-.hero-chip {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 13px; color: var(--text-2);
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 5px 13px;
-}
-.chip-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.chip-dot--orange { background: var(--orange); }
-.chip-dot--muted  { background: var(--text-3); }
 
-.balance-hero__right { display: flex; align-items: center; gap: 24px; flex-shrink: 0; }
+.balance-card {
+  position: relative; background: var(--bg-card);
+  border: 1px solid var(--gold-border);
+  border-radius: 24px; padding: 40px; color: var(--text); overflow: hidden;
+  max-width: 480px; width: 100%;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+}
+.bc-label { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-3); margin-bottom: 16px; }
+.bc-val { font-family: var(--font-display); font-size: 52px; color: var(--text); margin-bottom: 8px; line-height: 1; }
+.bc-val--huge { font-size: 72px; font-weight: 800; color: var(--gold); text-shadow: 0 4px 20px rgba(212,175,55,0.2); }
+.bc-sub { font-size: 16px; color: var(--text-3); font-weight: 500; margin-bottom: 24px; }
 
-/* Ring */
-.ring-wrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
-.ring-svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.ring-track { fill: none; stroke: var(--bg-raised); stroke-width: 8; }
-.ring-fill {
-  fill: none; stroke: var(--orange); stroke-width: 8; stroke-linecap: round;
-  stroke-dasharray: 213.6; transition: stroke-dashoffset 1.2s cubic-bezier(0.16,1,0.3,1);
+.btn-add-funds {
+  background: var(--gold); color: #000; border: none; border-radius: 14px;
+  padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 20px rgba(212,175,55,0.3);
 }
-.ring-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ring-pct { font-size: 15px; font-weight: 700; color: var(--text); line-height: 1; }
-.ring-sub { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.05em; }
-
-/* Add button */
-.btn-add {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 22px; background: var(--orange); color: #fff;
-  border: none; border-radius: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 20px rgba(251,146,60,0.3);
-}
-.btn-add:hover { background: #f97316; transform: translateY(-2px); box-shadow: 0 8px 28px rgba(251,146,60,0.4); }
-.btn-add:active { transform: translateY(0); }
-.btn-add--sm { padding: 9px 18px; font-size: 13px; }
-.btn-add__plus {
-  width: 20px; height: 20px; background: rgba(255,255,255,0.25); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1;
-}
+.btn-add-funds:hover { transform: translateY(-2px); scale: 1.05; box-shadow: 0 12px 24px rgba(212,175,55,0.4); }
+.btn-add-funds:active { transform: translateY(0); scale: 0.98; }
 
 /* BODY */
 .wallet-body { padding-bottom: 64px; }
@@ -424,11 +522,11 @@ onMounted(fetchHistory)
 
 .btn-deposit {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 16px; background: var(--orange); color: #fff; border: none; border-radius: 12px;
+  padding: 16px; background: #5D2E1F; color: var(--gold); border: none; border-radius: 12px;
   font-family: var(--font-body); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px;
-  transition: all 0.2s; box-shadow: 0 4px 20px rgba(251,146,60,0.28);
+  transition: all 0.2s; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
 }
-.btn-deposit:hover:not(:disabled) { background: #f97316; transform: translateY(-1px); box-shadow: 0 8px 28px rgba(251,146,60,0.4); }
+.btn-deposit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
 .btn-deposit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .dep-spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
 .drawer-note { margin-top: 14px; font-size: 12px; color: var(--text-3); text-align: center; line-height: 1.6; }
@@ -441,10 +539,53 @@ onMounted(fetchHistory)
 .drawer-leave-to { opacity: 0; }
 .drawer-leave-to .drawer { transform: translateY(100%); }
 
+.drawer-leave-to .drawer { transform: translateY(100%); }
+
+/* RECEIPT MODAL */
+.tx-modal { max-width: 400px; border-radius: 18px; overflow: hidden; }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal { background: var(--bg-card); border: 1px solid var(--border-md); width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.modal-close { background: none; border: none; font-size: 16px; color: var(--text-3); cursor: pointer; }
+.receipt-header { padding: 32px 20px; text-align: center; background: var(--bg-raised); }
+.receipt-icon {
+  width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.receipt-icon.cr { background: var(--green-dim); color: var(--green); }
+.receipt-icon.db { background: var(--red-dim); color: var(--red); }
+.receipt-type { font-size: 13px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.receipt-amt { font-family: var(--font-display); font-size: 32px; font-weight: 700; }
+.receipt-amt.cr { color: var(--green); }
+.receipt-amt.db { color: var(--red); }
+
+.receipt-details { padding: 20px; }
+.rd-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.rd-key { font-size: 12px; color: var(--text-3); }
+.rd-val { font-size: 13px; color: var(--text); font-weight: 500; }
+
+.receipt-footer { padding: 0 20px 24px; }
+.btn-dispute-full {
+  width: 100%; padding: 12px; background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 10px; color: var(--red); font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-dispute-full:hover { background: rgba(248,113,113,0.2); }
+
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 0 24px 24px; }
+.btn-cancel { padding: 10px 20px; background: var(--bg-raised); border: 1px solid var(--border-md); border-radius: 10px; color: var(--text-2); cursor: pointer; }
+.btn-submit-dispute { padding: 10px 20px; background: var(--orange); color: #fff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
 /* RESPONSIVE */
 @media (max-width: 640px) {
   .stat-row { grid-template-columns: repeat(2,1fr); }
-  .balance-hero__right { display: none; }
+  .balance-hero { padding: 40px 0; }
+  .bc-val--huge { font-size: 52px; }
+  .balance-card { padding: 32px 20px; }
   .quick-grid { grid-template-columns: repeat(2,1fr); }
   .tx-row { padding: 12px 16px; gap: 10px; }
   .history-head { padding: 14px 16px; }

@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
 import StatCard from '../components/StatCard.vue'
 import EmptyState from '../components/EmptyState.vue'
+import MediaUpload from '../components/MediaUpload.vue'
 
 const authStore = useAuthStore()
 const notification = useNotification()
@@ -19,8 +20,31 @@ const flaggedAuctions = ref([])
 const disputes = ref([])
 const proposals = ref([])
 const payments = ref([])
+const fulfillment = ref([])
 const stats = ref({})
+const platformSettings = ref({ razorpaySimulation: true })
 const loading = ref(false)
+const supportTickets = ref([])
+const auditLogs = ref({ transactions: [], orders: [] })
+const employees = ref([])
+const showEmployeeDialog = ref(false)
+const employeeForm = ref({ email: '', username: '', permissions: {} })
+const editingEmployee = ref(null)
+
+const permissionKeys = [
+  { key: 'view_users', label: 'View Users' },
+  { key: 'manage_users', label: 'Manage Users' },
+  { key: 'view_proposals', label: 'View Proposals' },
+  { key: 'manage_proposals', label: 'Manage Proposals' },
+  { key: 'view_auctions', label: 'View Auctions' },
+  { key: 'manage_auctions', label: 'Manage Auctions' },
+  { key: 'view_fulfillment', label: 'View Fulfillment' },
+  { key: 'manage_fulfillment', label: 'Manage Fulfillment' },
+  { key: 'view_disputes', label: 'View Disputes' },
+  { key: 'manage_disputes', label: 'Manage Disputes' },
+  { key: 'view_audit', label: 'View Audit Logs' },
+  { key: 'manage_settings', label: 'Manage Settings' }
+]
 
 // Create form
 const newAuction = ref({ title:'', description:'', category:'Watches', minBid:0, buyItNow:null, imageUrl:'', endTime: new Date(Date.now()+86400000).toISOString().slice(0,16) })
@@ -36,27 +60,50 @@ const auditUser = ref(null)
 const auditTxs = ref([])
 const showAudit = ref(false)
 
+// Fulfillment dialog
+const shipOrder = ref(null)
+const showShip = ref(false)
+
 const fmt = (n) => {
   const num = Number(n)
   return '₹' + (isNaN(num) ? 0 : num).toLocaleString('en-IN')
 }
 const pendingKYC = computed(() => allUsers.value.filter(u => u.kycStatus === 'pending'))
 
-const tabs = [
-  { id:'overview',   label:'Overview'  },
-  { id:'auctions',   label:'Auctions'  },
-  { id:'proposals',  label:'Proposals' },
-  { id:'payments',   label:'Payments'  },
-  { id:'flagged',    label:'Flagged'   },
-  { id:'disputes',   label:'Disputes'  },
-  { id:'users',      label:'Users'     },
-  { id:'create',     label:'+ New Lot' },
+const allTabsConfigs = [
+  { id:'overview',   label:'Overview'    },
+  { id:'auctions',   label:'Auctions',    permission: 'view_auctions' },
+  { id:'proposals',  label:'Proposals',   permission: 'view_proposals' },
+  { id:'fulfillment',label:'Fulfillment', permission: 'view_fulfillment' },
+  { id:'payments',   label:'Payments',    permission: 'view_audit' },
+  { id:'flagged',    label:'Flagged',     permission: 'manage_auctions' },
+  { id:'disputes',   label:'Disputes',    permission: 'view_disputes' },
+  { id:'support',    label:'Support'     },
+  { id:'users',      label:'Users',       permission: 'view_users' },
+  { id:'employees',  label:'Employees',   adminOnly: true },
+  { id:'logs',       label:'Audit Logs',  permission: 'view_audit' },
+  { id:'settings',   label:'Settings',    permission: 'manage_settings' },
+  { id:'create',     label:'+ New Lot',   permission: 'manage_auctions' },
 ]
+
+const tabs = computed(() => {
+  return allTabsConfigs.filter(t => {
+    if (authStore.role === 'admin') return true
+    if (t.adminOnly) return false
+    if (!t.permission) return true
+    return authStore.user?.permissions?.[t.permission]
+  })
+})
+
+const hasPermission = (perm) => {
+  if (authStore.role === 'admin') return true
+  return authStore.user?.permissions?.[perm]
+}
 
 const fetchData = async () => {
   loading.value = true
   try {
-    const [a, p, u, f, d, s, prop, pay] = await Promise.all([
+    const [a, p, u, f, d, s, prop, pay, ful, sett, tickets, logs] = await Promise.all([
       api.get('/api/auctions'),
       api.get('/api/admin/pendingAuctions'),
       api.get('/api/admin/users'),
@@ -64,7 +111,12 @@ const fetchData = async () => {
       api.get('/api/admin/disputes'),
       api.get('/api/admin/analytics'),
       api.get('/api/admin/proposals'),
-      api.get('/api/payments/history')
+      api.get('/api/payments/history'),
+      api.get('/api/admin/fulfillment'),
+      api.get('/api/admin/settings'),
+      api.get('/api/support/admin/tickets'),
+      api.get('/api/admin/audit/logs'),
+      authStore.role === 'admin' ? api.get('/api/admin/employees') : Promise.resolve({ data: [] })
     ])
     auctions.value = a.data
     pendingAuctions.value = p.data
@@ -74,9 +126,58 @@ const fetchData = async () => {
     stats.value = s.data
     proposals.value = prop.data
     payments.value = pay.data
+    fulfillment.value = ful.data
+    platformSettings.value = sett.data
+    supportTickets.value = tickets.data
+    auditLogs.value = logs.data
+    employees.value = emp.data
   } catch (e) {
-    notification.add('Failed to load admin data: ' + e.message, 'error')
+    if (e.response?.status !== 403) {
+      notification.add('Failed to load admin data: ' + e.message, 'error')
+    }
   } finally { loading.value = false }
+}
+
+const addEmployee = async () => {
+  submitting.value = true
+  try {
+    if (editingEmployee.value) {
+      await api.put(`/api/admin/employees/${editingEmployee.value.id}`, { permissions: employeeForm.value.permissions })
+      notification.add('Permissions updated', 'success')
+    } else {
+      await api.post('/api/admin/employees', employeeForm.value)
+      notification.add('Employee added', 'success')
+    }
+    showEmployeeDialog.value = false
+    fetchData()
+  } catch (e) {
+    notification.add('Failed: ' + (e.response?.data?.error || e.message), 'error')
+  } finally { submitting.value = false }
+}
+
+const removeEmployee = async (id) => {
+  if (!confirm('Remove this employee? They will revert to a standard bidder role.')) return
+  try {
+    await api.delete(`/api/admin/employees/${id}`)
+    notification.add('Employee removed', 'success')
+    fetchData()
+  } catch (e) { notification.add('Failed', 'error') }
+}
+
+const openEmployeeEdit = (emp) => {
+  editingEmployee.value = emp
+  employeeForm.value = { 
+    email: emp.email, 
+    username: emp.username, 
+    permissions: emp.permissions ? { ...emp.permissions } : {} 
+  }
+  showEmployeeDialog.value = true
+}
+
+const openAddEmployee = () => {
+  editingEmployee.value = null
+  employeeForm.value = { email: '', username: '', permissions: {} }
+  showEmployeeDialog.value = true
 }
 
 const createAuction = async () => {
@@ -137,6 +238,79 @@ const toggleUserStatus = async (userId, status) => {
 const approveProposal = async (proposalId, status, notes = '') => {
   try { await api.put(`/api/admin/proposals/${proposalId}`, { status, adminNotes: notes }); notification.add(`Proposal ${status}`, 'success'); fetchData() }
   catch { notification.add('Failed', 'error') }
+}
+
+const cancelKYC = async (userId) => {
+  if (!confirm('Force cancel KYC for this user?')) return
+  try { await api.put(`/api/admin/users/${userId}/cancel-kyc`); notification.add('KYC Cancelled by admin', 'success'); fetchData() }
+  catch { notification.add('Failed to cancel KYC', 'error') }
+}
+
+const cancelSubscription = async (userId) => {
+  if (!confirm('Force cancel subscription for this user?')) return
+  try { await api.put(`/api/admin/users/${userId}/cancel-subscription`); notification.add('Subscription Cancelled by admin', 'success'); fetchData() }
+  catch { notification.add('Failed to cancel subscription', 'error') }
+}
+
+const updateFulfillment = async () => {
+  submitting.value = true
+  try {
+    await api.put(`/api/admin/fulfillment/${shipOrder.value.id}/ship`, shipOrder.value)
+    notification.add('Order marked as shipped!', 'success')
+    showShip.value = false
+    fetchData()
+  } catch (e) { notification.add('Failed: ' + e.message, 'error') }
+  finally { submitting.value = false }
+}
+
+const updateSettings = async () => {
+  try {
+    await api.put('/api/admin/settings', platformSettings.value)
+    notification.add('Settings updated', 'success')
+  } catch (e) { notification.add('Failed: ' + e.message, 'error') }
+}
+
+const promoteToAdmin = async (userId) => {
+  if (!confirm('Promote this user to Admin?')) return
+  try {
+    await api.put(`/api/admin/users/${userId}/promote`)
+    notification.add('User promoted to Admin', 'success')
+    fetchData()
+  } catch (e) { notification.add('Promotion failed', 'error') }
+}
+
+const resolveTicket = async (ticketId, status) => {
+  const resolution = prompt('Enter resolution details:')
+  if (resolution === null) return
+  try {
+    await api.put(`/api/support/admin/tickets/${ticketId}`, { status, resolution })
+    notification.add('Ticket updated', 'success')
+    fetchData()
+  } catch (e) { notification.add('Update failed', 'error') }
+}
+
+const exportLogs = (format) => {
+  // Simple CSV export for now as a demonstration. 
+  // In a real app, you might use a library like xlsx or jspdf.
+  if (format === 'csv') {
+    const headers = ['Type', 'User', 'Amount', 'Balance', 'Date']
+    const rows = auditLogs.value.transactions.map(tx => [
+      tx.type, tx.userId, tx.amount, tx.newBalance, fmtDate(tx.createdAt)
+    ])
+    let csv = headers.join(',') + '\n'
+    rows.forEach(r => { csv += r.join(',') + '\n' })
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'audit_logs.csv'; a.click()
+  } else {
+    notification.add(`${format.toUpperCase()} export initiated... (Simulation)`, 'info')
+  }
+}
+
+const openShip = (order) => {
+  shipOrder.value = { ...order }
+  showShip.value = true
 }
 
 // Safely convert any Firestore timestamp shape → "YYYY-MM-DDTHH:MM" for datetime-local input.
@@ -203,6 +377,7 @@ onMounted(fetchData)
           {{ t.label }}
           <span v-if="t.id==='proposals' && pendingAuctions.length" class="tab-badge">{{ pendingAuctions.length }}</span>
           <span v-if="t.id==='disputes' && disputes.length" class="tab-badge">{{ disputes.length }}</span>
+          <span v-if="t.id==='support' && supportTickets.filter(t=>t.status==='open').length" class="tab-badge">{{ supportTickets.filter(t=>t.status==='open').length }}</span>
           <span v-if="t.id==='flagged' && flaggedAuctions.length" class="tab-badge tab-badge--red">{{ flaggedAuctions.length }}</span>
         </button>
       </div>
@@ -229,7 +404,7 @@ onMounted(fetchData)
                   <div style="font-size:14px;font-weight:600">{{ a.title }}</div>
                   <div class="t-mono">{{ fmt(a.minBid) }} · {{ a.sellerName || 'User' }}</div>
                 </div>
-                <div style="display:flex;gap:6px">
+                <div v-if="hasPermission('manage_proposals')" style="display:flex;gap:6px">
                   <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="reviewProposal(a.id, true)">✓</button>
                   <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="reviewProposal(a.id, false)">✕</button>
                 </div>
@@ -282,9 +457,9 @@ onMounted(fetchData)
                 <td style="text-align:right">
                   <div style="display:flex;gap:8px;justify-content:flex-end">
                     <router-link :to="'/auction/'+a.id" class="btn btn-ghost btn-sm">View</router-link>
-                    <button class="btn btn-ghost btn-sm" @click="openEdit(a)">Edit</button>
-                    <button class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="closeAuction(a.id)">End</button>
-                    <button class="btn btn-danger btn-sm" @click="deleteAuction(a.id)">Del</button>
+                    <button v-if="hasPermission('manage_auctions')" class="btn btn-ghost btn-sm" @click="openEdit(a)">Edit</button>
+                    <button v-if="hasPermission('manage_auctions')" class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="closeAuction(a.id)">End</button>
+                    <button v-if="hasPermission('manage_auctions')" class="btn btn-danger btn-sm" @click="deleteAuction(a.id)">Del</button>
                   </div>
                 </td>
               </tr>
@@ -313,7 +488,7 @@ onMounted(fetchData)
                 <td style="color:var(--text-2)">{{ a.sellerName || 'User' }}</td>
                 <td style="text-align:right;font-family:var(--font-display)">{{ fmt(a.minBid) }}</td>
                 <td style="text-align:right">
-                  <div style="display:flex;gap:8px;justify-content:flex-end">
+                  <div v-if="hasPermission('manage_proposals')" style="display:flex;gap:8px;justify-content:flex-end">
                     <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="reviewProposal(a.id, true)">Approve</button>
                     <button class="btn btn-danger btn-sm" @click="reviewProposal(a.id, false)">Reject</button>
                   </div>
@@ -343,7 +518,7 @@ onMounted(fetchData)
                   <span class="badge badge-red">{{ a.flagReason || 'Suspicious activity' }}</span>
                 </td>
                 <td style="text-align:right">
-                  <button class="btn btn-danger btn-sm" @click="deleteAuction(a.id)">Remove</button>
+                  <button v-if="hasPermission('manage_auctions')" class="btn btn-danger btn-sm" @click="deleteAuction(a.id)">Remove</button>
                 </td>
               </tr>
             </tbody>
@@ -363,15 +538,44 @@ onMounted(fetchData)
               <div style="flex:1">
                 <div class="t-mono" style="margin-bottom:4px">{{ d.auctionId?.slice(0,12).toUpperCase() }}</div>
                 <div style="font-size:14px;font-weight:600;margin-bottom:4px">{{ d.reason }}</div>
-                <div style="font-size:12px;color:var(--text-3)">{{ fmtDate(d.createdAt) }}</div>
+                <div style="font-size:12px;color:var(--text-3)">By User ID: {{ d.initiatorId }} • {{ fmtDate(d.createdAt) }}</div>
               </div>
-              <div style="display:flex;gap:8px">
-                <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="resolveDispute(d.id, 'Release Funds')">Release to Seller</button>
+              <div v-if="hasPermission('manage_disputes')" style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="resolveDispute(d.id, 'Release Funds')">Release Funds</button>
                 <button class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="resolveDispute(d.id, 'Refund Issued')">Refund Buyer</button>
               </div>
             </div>
           </div>
           <EmptyState v-else title="No open disputes" icon="◇" />
+        </div>
+      </div>
+
+      <!-- SUPPORT TICKETS -->
+      <div v-if="tab === 'support'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;border-bottom:1px solid var(--border)">
+            <div class="t-label">Support Tickets ({{ supportTickets.length }})</div>
+          </div>
+          <div v-if="supportTickets.length">
+            <div v-for="t in supportTickets" :key="t.id" class="dispute-row">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                  <span class="badge" :class="t.status">{{ t.status.toUpperCase() }}</span>
+                  <div style="font-weight:600">{{ t.subject }}</div>
+                </div>
+                <div style="font-size:14px;color:var(--text-3);margin-bottom:8px">{{ t.message }}</div>
+                <div v-if="t.resolution" style="font-size:13px;padding:10px;background:var(--green-dim);color:var(--green);border-radius:8px;margin-bottom:8px">
+                  <strong>Resolution:</strong> {{ t.resolution }}
+                </div>
+                <div style="font-size:12px;color:var(--text-3)">By {{ t.username }} ({{ t.userId }}) • {{ fmtDate(t.createdAt) }}</div>
+              </div>
+              <div v-if="hasPermission('manage_disputes')" style="display:flex;gap:8px">
+                <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="resolveTicket(t.id, 'resolved')">Resolve</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--text-3)" @click="resolveTicket(t.id, 'closed')">Close</button>
+              </div>
+            </div>
+          </div>
+          <EmptyState v-else title="No support tickets" icon="🎧" />
         </div>
       </div>
 
@@ -384,11 +588,17 @@ onMounted(fetchData)
           <div v-if="proposals.length">
             <div v-for="p in proposals" :key="p.id" class="dispute-row">
               <div style="flex:1">
-                <div style="font-weight:600;margin-bottom:4px">{{ p.title }}</div>
-                <div style="font-size:14px;color:var(--text-3);margin-bottom:4px">{{ p.description }}</div>
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+                  <span class="badge" :class="p.type === 'listing' ? 'badge-live' : 'badge-muted'">{{ p.type?.toUpperCase() || 'GENERAL' }}</span>
+                  <div style="font-weight:600">{{ p.title }}</div>
+                </div>
+                <div style="font-size:14px;color:var(--text-3);margin-bottom:8px">{{ p.description }}</div>
+                <div v-if="p.type === 'listing'" class="t-mono" style="font-size:12px;margin-bottom:8px;padding:8px;background:var(--bg-raised);border-radius:4px">
+                  Starting Price: {{ fmt(p.startingPrice) }} • Duration: {{ p.duration }}h • Category: {{ p.category }}
+                </div>
                 <div style="font-size:12px;color:var(--text-3)">By {{ p.userId }} • {{ fmtDate(p.submittedAt) }}</div>
               </div>
-              <div style="display:flex;gap:8px">
+              <div v-if="hasPermission('manage_proposals')" style="display:flex;gap:8px">
                 <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="approveProposal(p.id, 'approved')">Approve</button>
                 <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="approveProposal(p.id, 'rejected')">Reject</button>
               </div>
@@ -419,6 +629,92 @@ onMounted(fetchData)
         </div>
       </div>
 
+      <!-- FULFILLMENT -->
+      <div v-if="tab === 'fulfillment'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;border-bottom:1px solid var(--border)">
+            <div class="t-label">Order Fulfillment ({{ fulfillment.length }})</div>
+          </div>
+          <table v-if="fulfillment.length" class="data-table">
+            <thead><tr><th>Lot / Item</th><th>Winner</th><th>Status</th><th style="text-align:right">Action</th></tr></thead>
+            <tbody>
+              <tr v-for="order in fulfillment" :key="order.id">
+                <td>
+                  <div style="font-weight:600">{{ order.auctionTitle }}</div>
+                  <div class="t-mono">{{ order.id }}</div>
+                </td>
+                <td>
+                  <div>{{ order.winnerName }}</div>
+                  <div style="font-size:12px;color:var(--text-3)">{{ order.shippingAddress }}</div>
+                </td>
+                <td>
+                  <span class="badge" :class="order.status === 'delivered' ? 'badge-live' : order.status === 'shipped' ? 'badge-orange' : 'badge-muted'">
+                    {{ order.status?.toUpperCase() }}
+                  </span>
+                </td>
+                <td style="text-align:right">
+                  <button v-if="order.status === 'processing' && hasPermission('manage_fulfillment')" class="btn btn-gold btn-sm" @click="openShip(order)">Process Shipment</button>
+                  <button v-else-if="order.status === 'shipped' && hasPermission('manage_fulfillment')" class="btn btn-ghost btn-sm" @click="openShip(order)">Update Tracking</button>
+                  <span v-else class="t-label">{{ order.status === 'delivered' ? 'Completed' : 'Awaiting Processing' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState v-else title="No orders to fulfill" icon="📦" />
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div v-if="tab === 'settings'" class="fade-up fade-up-2">
+        <div class="card" style="padding:28px;max-width:600px">
+          <div class="t-label" style="margin-bottom:20px">Platform Settings</div>
+          <div style="display:flex;flex-direction:column;gap:24px">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--bg-raised);border-radius:12px;border:1px solid var(--border)">
+              <div>
+                <div style="font-weight:600;margin-bottom:4px">Razorpay Simulation Mode</div>
+                <div style="font-size:12px;color:var(--text-3)">Bypass real payment gateway for testing</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="platformSettings.razorpaySimulation" @change="updateSettings">
+                <span class="slider round"></span>
+              </label>
+            </div>
+            
+            <div style="padding:16px;background:var(--blue-dim);border:1px solid rgba(59,130,246,0.2);border-radius:12px">
+              <div style="color:var(--blue);font-size:13px;line-height:1.5">
+                <strong>Admin Notice:</strong> Subscription and KYC fees are controlled via the payment gateway settings. Ensure the simulation is OFF for high-value production auctions.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AUDIT LOGS EXPORT -->
+      <div v-if="tab === 'logs'" class="fade-up fade-up-2">
+        <div class="card" style="padding:32px">
+          <div class="t-label" style="margin-bottom:12px">Platform Audit Logs</div>
+          <p style="font-size:14px;color:var(--text-2);margin-bottom:32px">Export all sales, purchases, and system transactions for compliance and records.</p>
+          
+          <div class="export-grid">
+            <div class="export-card" @click="exportLogs('csv')">
+              <div class="export-icon">📄</div>
+              <div class="export-name">CSV Spreadsheet</div>
+              <div class="export-sub">Export {{ auditLogs.transactions.length }} events</div>
+            </div>
+            <div class="export-card" @click="exportLogs('xlsx')">
+              <div class="export-icon">📊</div>
+              <div class="export-name">Excel (XLSX)</div>
+              <div class="export-sub">Formatted report</div>
+            </div>
+            <div class="export-card" @click="exportLogs('pdf')">
+              <div class="export-icon">📕</div>
+              <div class="export-name">PDF Report</div>
+              <div class="export-sub">Official statement</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- USERS -->
       <div v-if="tab === 'users'" class="fade-up fade-up-2">
         <div class="card" style="overflow:hidden">
@@ -431,7 +727,11 @@ onMounted(fetchData)
               <tr v-for="u in allUsers" :key="u.uid">
                 <td>
                   <div style="font-weight:600;font-size:14px">{{ u.username }}</div>
-                  <div class="t-mono">{{ u.email }}</div>
+                  <div class="t-mono" style="margin-bottom:4px">{{ u.email }}</div>
+                  <div v-if="u.kycData" style="display:flex;gap:8px" class="mt-1">
+                    <a v-if="u.kycData.idUrl" :href="u.kycData.idUrl" target="_blank" class="t-label" style="text-decoration:none;color:var(--blue)">[ID View]</a>
+                    <a v-if="u.kycData.selfieUrl" :href="u.kycData.selfieUrl" target="_blank" class="t-label" style="text-decoration:none;color:var(--orange)">[Selfie View]</a>
+                  </div>
                 </td>
                 <td style="text-align:right;font-family:var(--font-display)">{{ fmt(u.credits) }}</td>
                 <td style="text-align:center">
@@ -440,17 +740,57 @@ onMounted(fetchData)
                   </span>
                 </td>
                 <td style="text-align:right">
-                  <div style="display:flex;gap:8px;justify-content:flex-end">
-                    <template v-if="u.kycStatus === 'pending'">
-                      <button class="btn btn-ghost btn-sm" style="color:var(--green)" @click="processKYC(u.uid,'approved')">Approve</button>
-                      <button class="btn btn-danger btn-sm" @click="processKYC(u.uid,'rejected')">Reject</button>
-                    </template>
-                    <button class="btn btn-ghost btn-sm" @click="openAudit(u)">Audit</button>
+                  <div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">
+                    <span v-if="u.isFlagged" class="badge badge-red" title="Suspicious activity detected">FLAGGED</span>
+                    <button v-if="u.kycStatus === 'pending' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="processKYC(u.uid,'approved')">Approve KYC</button>
+                    <button v-if="(u.kycStatus === 'approved' || u.isVerified) && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="cancelKYC(u.uid)">Cancel KYC</button>
+                    <button v-if="u.isSubscribed && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--orange)" @click="cancelSubscription(u.uid)">Cancel Sub</button>
+                    <button v-if="u.role !== 'admin' && authStore.role === 'admin'" class="btn btn-gold btn-sm" @click="promoteToAdmin(u.uid)">Make Admin</button>
+                    <button v-if="u.status !== 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--red)" @click="toggleUserStatus(u.uid, 'blocked')">Block</button>
+                    <button v-else-if="u.status === 'blocked' && hasPermission('manage_users')" class="btn btn-ghost btn-sm" style="color:var(--green)" @click="toggleUserStatus(u.uid, 'active')">Unblock</button>
+                    <button v-if="hasPermission('view_audit')" class="btn btn-ghost btn-sm" @click="openAudit(u)">Audit</button>
                   </div>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- EMPLOYEES -->
+      <div v-if="tab === 'employees' && authStore.role === 'admin'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+            <div class="t-label">Employee Management ({{ employees.length }})</div>
+            <button class="btn btn-gold btn-sm" @click="openAddEmployee">Add Employee</button>
+          </div>
+          <table v-if="employees.length" class="data-table">
+            <thead><tr><th>Employee</th><th>Added At</th><th style="text-align:center">Permissions</th><th style="text-align:right">Actions</th></tr></thead>
+            <tbody>
+              <tr v-for="emp in employees" :key="emp.id">
+                <td>
+                  <div style="font-weight:600;font-size:14px">{{ emp.username }}</div>
+                  <div class="t-mono">{{ emp.email }}</div>
+                </td>
+                <td class="t-mono" style="font-size:12px">{{ fmtDate(emp.employeeAddedAt) }}</td>
+                <td style="text-align:center">
+                  <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;max-width:200px">
+                    <span v-for="pKey in permissionKeys" :key="pKey.key" 
+                      v-show="emp.permissions?.[pKey.key]"
+                      class="badge badge-live" style="font-size:10px;padding:2px 4px"
+                    >{{ pKey.label }}</span>
+                  </div>
+                </td>
+                <td style="text-align:right">
+                  <div style="display:flex;gap:8px;justify-content:flex-end">
+                    <button class="btn btn-ghost btn-sm" @click="openEmployeeEdit(emp)">Edit</button>
+                    <button class="btn btn-danger btn-sm" @click="removeEmployee(emp.id)">Remove</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <EmptyState v-else title="No employees added" icon="👥" subtitle="Promote users to employees to share management tasks." />
         </div>
       </div>
 
@@ -497,10 +837,7 @@ onMounted(fetchData)
               </div>
             </div>
 
-            <div class="field-wrap">
-              <label class="field-label">Image URL</label>
-              <input v-model="newAuction.imageUrl" class="field" placeholder="https://…" />
-            </div>
+            <MediaUpload v-model="newAuction.imageUrl" label="Image" />
 
             <div style="display:flex;align-items:center;gap:16px;padding-top:4px">
               <button type="submit" class="btn btn-gold btn-lg" :disabled="submitting">
@@ -533,7 +870,7 @@ onMounted(fetchData)
                 </div>
                 <div class="field-wrap"><label class="field-label">End Time</label><input v-model="editItem.endTime" type="datetime-local" class="field" /></div>
               </div>
-              <div class="field-wrap"><label class="field-label">Image URL</label><input v-model="editItem.imageUrl" class="field" /></div>
+              <MediaUpload v-model="editItem.imageUrl" label="Image" />
               <div v-if="!editItem.bidCount" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div class="field-wrap"><label class="field-label">Min Bid (₹)</label><input v-model.number="editItem.minBid" type="number" class="field" /></div>
                 <div class="field-wrap"><label class="field-label">Buy It Now (₹)</label><input v-model.number="editItem.buyItNow" type="number" class="field" /></div>
@@ -577,6 +914,77 @@ onMounted(fetchData)
         </div>
       </Transition>
     </Teleport>
+
+    <!-- Ship Dialog -->
+    <Teleport to="body">
+      <Transition name="page">
+        <div v-if="showShip" class="dialog-overlay" @click.self="showShip=false">
+          <div class="dialog">
+            <div class="dialog__header">
+              <div class="t-label">Process Shipment</div>
+              <button class="btn btn-ghost btn-sm" @click="showShip=false">✕</button>
+            </div>
+            <div v-if="shipOrder" style="display:flex;flex-direction:column;gap:16px;padding:24px">
+              <div class="field-wrap">
+                <label class="field-label">Update Shipping Address (Verified)</label>
+                <textarea v-model="shipOrder.shippingAddress" class="field" rows="2"></textarea>
+              </div>
+              <div class="field-wrap">
+                <label class="field-label">Courier Service</label>
+                <input v-model="shipOrder.courierService" class="field" placeholder="e.g. BlueDart, FedEx" />
+              </div>
+              <div class="field-wrap">
+                <label class="field-label">Tracking URL / Link</label>
+                <input v-model="shipOrder.trackingUrl" class="field" placeholder="https://bluedart.com/track/..." />
+              </div>
+              <div style="font-size:12px;color:var(--text-3);background:var(--bg-raised);padding:10px;border-radius:8px">
+                Order will be marked as <strong>SHIPPED</strong>. User will receive a notification and can mark it as delivered.
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;padding:0 24px 24px;justify-content:flex-end">
+              <button class="btn btn-ghost" @click="showShip=false">Cancel</button>
+              <button class="btn btn-gold" :disabled="submitting" @click="updateFulfillment">{{ submitting ? 'Updating…' : 'Confirm Shipment' }}</button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- Employee Dialog (Add/Edit) -->
+    <Teleport to="body">
+      <Transition name="page">
+        <div v-if="showEmployeeDialog" class="dialog-overlay" @click.self="showEmployeeDialog=false">
+          <div class="dialog">
+            <div class="dialog__header">
+              <div class="t-label">{{ editingEmployee ? 'Edit Permissions' : 'Add Employee' }}</div>
+              <button class="btn btn-ghost btn-sm" @click="showEmployeeDialog=false">✕</button>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:16px;padding:24px">
+              <div v-if="!editingEmployee" class="field-wrap">
+                <label class="field-label">User Email (User must be already registered)</label>
+                <input v-model="employeeForm.email" required class="field" placeholder="user@example.com" />
+              </div>
+              <div v-else class="field-wrap">
+                <label class="field-label">Permissions for {{ editingEmployee.username }}</label>
+              </div>
+              
+              <div class="permissions-grid">
+                <label v-for="p in permissionKeys" :key="p.key" class="perm-opt">
+                  <input type="checkbox" v-model="employeeForm.permissions[p.key]" />
+                  <span>{{ p.label }}</span>
+                </label>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;padding:0 24px 24px;justify-content:flex-end">
+              <button class="btn btn-ghost" @click="showEmployeeDialog=false">Cancel</button>
+              <button class="btn btn-gold" :disabled="submitting" @click="addEmployee">
+                {{ submitting ? (editingEmployee ? 'Updating…' : 'Adding…') : (editingEmployee ? 'Save Permissions' : 'Add Employee') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>
 
@@ -600,11 +1008,39 @@ onMounted(fetchData)
 .dispute-row { display:flex; align-items:center; gap:20px; padding:18px 20px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
 .dispute-row:last-child { border-bottom:none; }
 
+/* Switch Toggle */
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; inset: 0; background-color: var(--border-strong); transition: .4s; }
+.slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; }
+input:checked + .slider { background-color: var(--gold); }
+input:checked + .slider:before { transform: translateX(20px); }
+.slider.round { border-radius: 34px; }
+.slider.round:before { border-radius: 50%; }
+
 /* Dialog */
 .dialog-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:24px; }
 .dialog { background:var(--bg-card); border:1px solid var(--border-md); border-radius:var(--r-lg); width:100%; max-width:560px; }
 .dialog--wide { max-width:720px; }
 .dialog__header { display:flex; align-items:center; justify-content:space-between; padding:20px 24px; border-bottom:1px solid var(--border); }
 
-@media (max-width:768px) { .two-col { grid-template-columns:1fr; } }
+.permissions-grid { 
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; 
+  padding: 16px; background: var(--bg-raised); border-radius: 12px; border: 1px solid var(--border);
+}
+.perm-opt { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); cursor: pointer; }
+.perm-opt input { width: 16px; height: 16px; accent-color: var(--gold); }
+
+
+.export-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.export-card { 
+  background:var(--bg-raised); border:1px solid var(--border); border-radius:16px; padding:24px; text-align:center; 
+  cursor:pointer; transition:all 0.2s; 
+}
+.export-card:hover { border-color:var(--gold); transform:translateY(-4px); background:var(--bg-hover); }
+.export-icon { font-size:32px; margin-bottom:12px; }
+.export-name { font-weight:700; color:var(--text); margin-bottom:4px; }
+.export-sub { font-size:12px; color:var(--text-3); }
+
+@media (max-width:768px) { .two-col { grid-template-columns:1fr; } .export-grid { grid-template-columns:1fr; } }
 </style>

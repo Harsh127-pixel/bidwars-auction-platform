@@ -14,6 +14,8 @@ module.exports = (io, db) => {
     const ip = socket.handshake.address;
 
     try {
+      let result = null;
+
       await db.runTransaction(async (transaction) => {
         const auctionRef = db.collection("auctions").doc(auctionId);
         const userRef = db.collection("users").doc(userId);
@@ -21,22 +23,22 @@ module.exports = (io, db) => {
         const auctionDoc = await transaction.get(auctionRef);
         const userDoc = await transaction.get(userRef);
 
-        if (!auctionDoc.exists) throw "Auction listing not found.";
-        if (!userDoc.exists) throw "User identity not found.";
+        if (!auctionDoc.exists) throw new Error("Auction listing not found.");
+        if (!userDoc.exists) throw new Error("User identity not found.");
 
         const auctionData = auctionDoc.data();
         const userData = userDoc.data();
 
         // 1. Validation Logic
-        if (auctionData.status !== 'active') throw "This bidding floor is currently closed.";
-        if (userData.credits < amount) throw "Insufficient wealth ledger balance for this bid.";
+        if (auctionData.status !== 'active') throw new Error("This bidding floor is currently closed.");
+        if (userData.credits < amount) throw new Error("Insufficient wealth ledger balance for this bid.");
 
         // 2. Fraud Detection
         const fraudFlags = await fraudService.checkBiddingPattern(auctionId, userId, ip);
         if (fraudFlags.length > 0) {
           console.warn(`[FRAUD ALERT] User ${userId} flagged on ${auctionId}`);
           await fraudService.flagListing(auctionId, fraudFlags[0].detail);
-          io.emit('admin:flagged', { auctionId, reason: fraudFlags[0].detail });
+          // Flagged events happen inside transaction but it's okay for logging
         }
 
         const currentPrice = auctionData.highestBid || auctionData.minBid;
@@ -44,11 +46,10 @@ module.exports = (io, db) => {
         const minRequired = currentPrice + increment;
 
         if (amount < minRequired) {
-          throw `Inadequate Offer. Market rules require a minimum increment of ₹${increment}. Next valid bid is ₹${minRequired}.`;
+          throw new Error(`Inadequate Offer. Market rules require a minimum increment of ₹${increment}. Next valid bid is ₹${minRequired}.`);
         }
 
         // 3. Proxy Competition Logic
-        // Find existing top proxy if any
         const proxyRef = db.collection("proxyBids").doc(auctionId);
         const currentProxyDoc = await transaction.get(proxyRef);
         const currentProxyData = currentProxyDoc.exists ? currentProxyDoc.data() : null;
@@ -60,46 +61,41 @@ module.exports = (io, db) => {
           const existingMax = currentProxyData.maxAmount;
           
           if (amount > existingMax) {
-            // New bidder beats old proxy
-            // Price becomes old_max + increment
             finalPrice = calculateRequiredBid(existingMax);
             newWinnerId = userId;
-            // Update proxy record for new winner
             transaction.set(proxyRef, { userId, maxAmount: amount, updatedAt: new Date() });
           } else {
-            // Old proxy beats new bidder
-            // Price becomes new_bid + increment
             finalPrice = calculateRequiredBid(amount);
             newWinnerId = currentProxyData.userId;
-            // Old proxy remains, price goes up
-            throw { type: 'OUTBID', message: `You have been instantly outbid by an existing proxy. Price is now ₹${finalPrice}.`, currentPrice: finalPrice };
+            const err = new Error(`You have been instantly outbid by an existing proxy. Price is now ₹${finalPrice.toLocaleString()}.`);
+            err.type = 'OUTBID';
+            err.currentPrice = finalPrice;
+            throw err;
           }
         } else {
-          // No competing proxy or same user updating max
           transaction.set(proxyRef, { userId, maxAmount: amount, updatedAt: new Date() });
         }
 
         // 4. Financial Settlement (EMD/Hold)
-        const newWinnerRef = db.collection("users").doc(newWinnerId);
-        const newWinnerDoc = (newWinnerId === userId) ? userDoc : await transaction.get(newWinnerRef);
-        const newWinnerData = newWinnerDoc.data();
-
-        // If a new bidder takes the lead, or price increases for existing lead
         const priceIncrease = finalPrice - (auctionData.highestBid || 0);
         
         if (priceIncrease > 0) {
-          if (newWinnerData.credits < priceIncrease) throw "Insufficient Liquid Credits for settlement.";
+          const newWinnerRef = db.collection("users").doc(newWinnerId);
+          // Re-fetch winner data if it's someone else (for current credits)
+          const newWinnerDocActual = (newWinnerId === userId) ? userDoc : await transaction.get(newWinnerRef);
+          const nwData = newWinnerDocActual.data();
+
+          if (nwData.credits < priceIncrease) throw new Error("Insufficient Liquid Credits for settlement.");
           
           transaction.update(newWinnerRef, {
             credits: admin.firestore.FieldValue.increment(-priceIncrease),
             heldCredits: admin.firestore.FieldValue.increment(priceIncrease)
           });
 
-          // Log the hold
-          ledgerService.logTransaction(transaction, newWinnerId, -priceIncrease, 'BID_HOLD', newWinnerData.credits, newWinnerData.credits - priceIncrease, auctionId);
+          ledgerService.logTransaction(transaction, newWinnerId, -priceIncrease, 'BID_HOLD', nwData.credits, nwData.credits - priceIncrease, auctionId);
         }
 
-        // Refund previous bidder if they were outbid by a different user
+        // Refund previous bidder
         if (auctionData.highestBidder && auctionData.highestBidder !== newWinnerId) {
           const prevBidderRef = db.collection("users").doc(auctionData.highestBidder);
           const prevBidderDoc = await transaction.get(prevBidderRef);
@@ -115,48 +111,63 @@ module.exports = (io, db) => {
         }
 
         // 5. Commit Data
+        const bidCount = (auctionData.bidCount || 0) + 1;
+        const reserveMet = auctionData.reservePrice ? finalPrice >= auctionData.reservePrice : true;
+        
         transaction.update(auctionRef, {
           highestBid: finalPrice,
           highestBidder: newWinnerId,
-          bidCount: (auctionData.bidCount || 0) + 1,
-          reserveMet: auctionData.reservePrice ? finalPrice >= auctionData.reservePrice : true,
+          bidCount: bidCount,
+          reserveMet: reserveMet,
           updatedAt: new Date()
         });
 
-        // Record bid in history
         const bidLogRef = db.collection("bids").doc();
         transaction.set(bidLogRef, {
-          auctionId,
-          userId,
-          amount: finalPrice,
-          maxAmount: amount,
-          ip,
-          timestamp: new Date(),
-          isProxy: !!isProxy
+          auctionId, userId, amount: finalPrice, maxAmount: amount, ip, timestamp: new Date(), isProxy: !!isProxy
         });
 
-        // Soft-close logic (Timer extension)
-        const endTime = new Date(auctionData.endTime).getTime();
-        if (endTime - Date.now() < 120000) { // 2 mins
-          const newEndTime = new Date(endTime + 180000).toISOString();
+        // Soft-close logic
+        let newEndTime = null;
+        const et = auctionData.endTime;
+        const endTime = et?.toDate ? et.toDate().getTime() : new Date(et).getTime();
+        if (endTime - Date.now() < 120000) {
+          newEndTime = new Date(endTime + 180000).toISOString();
           transaction.update(auctionRef, { endTime: newEndTime });
-          io.emit("timerExtension", { auctionId, newEndTime });
         }
 
-        io.emit("bidUpdate", { 
+        // Prepare result for side effects outside transaction
+        result = { 
           auctionId, 
-          userId: newWinnerId, 
-          amount: finalPrice, 
-          bidCount: (auctionData.bidCount || 0) + 1,
-          reserveMet: auctionData.reservePrice ? finalPrice >= auctionData.reservePrice : true
-        });
+          newWinnerId, 
+          finalPrice, 
+          bidCount, 
+          reserveMet, 
+          newEndTime,
+          status: auctionData.status
+        };
       });
 
+      // Side Effects (Socket emissions) after transaction success
+      if (result) {
+        if (result.newEndTime) {
+          io.emit("timerExtension", { auctionId: result.auctionId, newEndTime: result.newEndTime });
+        }
+        io.emit("bidUpdate", { 
+          auctionId: result.auctionId, 
+          userId: result.newWinnerId, 
+          amount: result.finalPrice, 
+          bidCount: result.bidCount,
+          reserveMet: result.reserveMet
+        });
+      }
+
     } catch (error) {
-      console.error("Bidding Engine Error:", error);
+      console.error("Bidding Engine Error:", error.message || error);
       socket.emit("error", { 
-        message: typeof error === 'string' ? error : (error.message || "Bidding transaction failed"),
-        type: error.type || 'SERVER_ERROR'
+        message: error.message || "Bidding transaction failed",
+        type: error.type || 'SERVER_ERROR',
+        currentPrice: error.currentPrice
       });
     }
   };

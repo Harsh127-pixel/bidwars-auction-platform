@@ -1,6 +1,6 @@
 <!-- FILE: frontend/src/pages/AuctionDetail.vue -->
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import api from '../services/api'
@@ -11,6 +11,7 @@ const route        = useRoute()
 const router       = useRouter()
 const authStore    = useAuthStore()
 const notification = useNotification()
+const openSubscriptionModal = inject('openSubscriptionModal', () => {})
 
 const auction    = ref(null)
 const loading    = ref(true)
@@ -28,6 +29,8 @@ let timerInterval = null
 const fmt          = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
 const suggestedBid = computed(() => highestBid.value + 1000)
 const quickBids    = computed(() => [1000, 5000, 10000, 25000, 50000].map(s => highestBid.value + s))
+const isSubscribed = computed(() => authStore.user?.subscriptionStatus === 'active')
+const feeRate      = computed(() => isSubscribed.value ? 0 : 0.05)
 
 const updateTimer = () => {
   if (!auction.value?.endTime) return
@@ -43,16 +46,38 @@ const updateTimer = () => {
 const fetchAuction = async () => {
   loading.value = true
   try {
-    const res   = await api.get('/api/auctions')
-    const found = res.data.find(a => String(a.id) === String(route.params.id))
-    if (!found) { notification.add('Auction not found', 'error'); router.push('/auctions'); return }
+    // Try to fetch specific auction (if backend has this route, which it should really but currently we use global list)
+    // Actually our backend /api/auctions ONLY returns active ones. 
+    // Let's add a single auction fetch route or check if it's in the list.
+    const res = await api.get('/api/auctions')
+    if (!Array.isArray(res.data)) throw new Error('Invalid data format')
+    
+    let found = res.data.find(a => String(a.id) === String(route.params.id))
+    
+    // Fallback: If not found in active list, try to fetch directly (assuming backend has /api/auctions/:id)
+    if (!found) {
+       try {
+         const single = await api.get(`/api/auctions/${route.params.id}`)
+         found = single.data
+       } catch (e) {
+         notification.add('Auction not found', 'error')
+         router.push('/auctions')
+         return
+       }
+    }
+
     if (found.endTime?._seconds) found.endTime = new Date(found.endTime._seconds * 1000).toISOString()
+    else if (found.endTime?.seconds) found.endTime = new Date(found.endTime.seconds * 1000).toISOString()
+    
     if (!found.endTime || isNaN(new Date(found.endTime).getTime()))
       found.endTime = new Date(Date.now() + 86400000).toISOString()
+      
     auction.value   = found
     highestBid.value = found.highestBid || found.minBid || 0
-  } catch { router.push('/auctions') }
-  finally { loading.value = false }
+  } catch (err) { 
+    console.error('Fetch error:', err)
+    router.push('/auctions') 
+  } finally { loading.value = false }
 }
 
 const joinAuction = () => {
@@ -268,19 +293,27 @@ onUnmounted(() => {
           </div>
 
           <!-- FEE BREAKDOWN -->
-          <div class="fee-card">
+          <div class="fee-card" :class="{ 'fee-card--subscribed': isSubscribed }">
             <div class="fee-row">
               <span>Hammer price</span>
               <span>{{ fmt(highestBid) }}</span>
             </div>
-            <div class="fee-row">
-              <span>Buyer's premium (5%)</span>
-              <span>{{ fmt(Math.round(highestBid * 0.05)) }}</span>
+            <div class="fee-row" :class="{ 'fee-row--waived': isSubscribed }">
+              <span>
+                Buyer's premium
+                <span v-if="isSubscribed" class="fee-badge-pro">PRO</span>
+                <span v-else class="fee-badge-rate">(5%)</span>
+              </span>
+              <span v-if="isSubscribed" class="fee-waived">₹0 Waived ✓</span>
+              <span v-else>{{ fmt(Math.round(highestBid * 0.05)) }}</span>
             </div>
             <div class="fee-divider"></div>
             <div class="fee-row fee-row--total">
               <span>Total if you win</span>
-              <span class="fee-total">{{ fmt(Math.round(highestBid * 1.05)) }}</span>
+              <span class="fee-total">{{ fmt(Math.round(highestBid * (1 + feeRate))) }}</span>
+            </div>
+            <div v-if="!isSubscribed" class="fee-upsell" @click="openSubscriptionModal('fee')">
+              <span>💸 Remove the 5% fee → <strong>Subscribe Pro</strong></span>
             </div>
           </div>
 
@@ -451,11 +484,32 @@ onUnmounted(() => {
 .fee-card {
   background: var(--bg-card); border: 1px solid var(--border);
   border-radius: 14px; padding: 16px 20px;
+  transition: border-color 0.3s;
 }
-.fee-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-2); margin-bottom: 10px; }
+.fee-card--subscribed {
+  border-color: var(--gold-border);
+  background: linear-gradient(145deg, var(--bg-card) 0%, rgba(212,175,55,0.03) 100%);
+}
+.fee-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-2); margin-bottom: 10px; gap: 8px; }
 .fee-row--total { margin-bottom: 0; font-weight: 600; font-size: 14px; color: var(--text); }
+.fee-row--waived { color: var(--text-3); }
 .fee-total { color: var(--orange); }
 .fee-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 10px; }
+.fee-badge-pro {
+  display: inline-block; background: var(--gold); color: #000;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle;
+}
+.fee-badge-rate { color: var(--text-3); font-size: 12px; }
+.fee-waived { color: var(--green); font-weight: 700; font-size: 13px; }
+.fee-upsell {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--gold-dim); border: 1px dashed var(--gold-border);
+  border-radius: 10px; font-size: 12px; color: var(--text-2);
+  cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.fee-upsell:hover { background: var(--gold-border); color: var(--text); }
+.fee-upsell strong { color: var(--gold); }
 
 /* Spinner */
 .btn-spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }

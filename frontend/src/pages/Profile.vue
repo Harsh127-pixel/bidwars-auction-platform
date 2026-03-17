@@ -1,19 +1,38 @@
 <!-- FILE: frontend/src/pages/Profile.vue -->
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useAuthStore } from '../store/auth'
 import { useNotification } from '../services/notification'
 import api from '../services/api'
+import MediaUpload from '../components/MediaUpload.vue'
+
+const openSubscriptionModal = inject('openSubscriptionModal', () => {})
 
 const authStore = useAuthStore()
 const notification = useNotification()
 const wonItems = ref([])
 const notifications = ref([])
-const kycLoading = ref(false)
 const activeTab = ref('account')
 
-const tier = computed(() => authStore.user?.membershipTier || 'Bronze')
-const commissionRate = computed(() => ({ Gold: 1, Silver: 3, Bronze: 5 }[tier.value] || 5))
+const kycLoading = ref(false)
+const kycForm = ref({
+  idType: 'Aadhaar',
+  idNumber: '',
+  idUrl: '',
+  selfieUrl: ''
+})
+const showKycForm = ref(false)
+
+const tier = computed(() => {
+  if (authStore.user?.subscriptionStatus === 'active') {
+    return authStore.user?.membershipTier || 'Silver'
+  }
+  return authStore.user?.membershipTier || 'Bronze'
+})
+const commissionRate = computed(() => {
+  if (authStore.user?.subscriptionStatus === 'active') return 0
+  return { Gold: 1, Silver: 3, Bronze: 5 }[tier.value] || 5
+})
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
 
 const tierColor = computed(() => ({ Gold: 'var(--gold)', Silver: '#9BA3AF', Bronze: '#D97706' }[tier.value] || 'var(--orange)'))
@@ -36,20 +55,19 @@ const tabs = [
 ]
 
 const submitKYC = async () => {
+  if (!kycForm.value.idUrl) return notification.add('Please upload your ID document', 'error')
   kycLoading.value = true
   try {
-    await api.post('/api/users/kyc/initiate')
-    notification.add('KYC initiated. Check back later.', 'success')
-  } catch { notification.add('KYC initiation failed.', 'error') }
-  finally { kycLoading.value = false }
+    await api.post('/api/users/kyc/submit', kycForm.value)
+    notification.add('KYC documents submitted for review!', 'success')
+    showKycForm.value = false
+  } catch (err) {
+    notification.add('Submission failed: ' + (err.response?.data?.error || err.message), 'error')
+  } finally {
+    kycLoading.value = false
+  }
 }
 
-const cancelKYC = async () => {
-  try {
-    await api.post('/api/users/kyc/cancel')
-    notification.add('KYC cancelled.', 'success')
-  } catch { notification.add('Failed to cancel KYC.', 'error') }
-}
 
 const subscribe = async (plan) => {
   try {
@@ -189,7 +207,7 @@ onMounted(loadData)
                 <div class="kyc-pending__title">Verification In Progress</div>
                 <div class="kyc-pending__sub">Admin is reviewing your submission. You'll be notified once it's complete.</div>
               </div>
-              <div v-else class="kyc-prompt">
+              <div v-else-if="!showKycForm" class="kyc-prompt">
                 <div class="kyc-prompt__icon">🛡</div>
                 <div class="kyc-prompt__title">Verify Your Identity</div>
                 <div class="kyc-prompt__sub">Unlock premium and government-repossession auctions by completing KYC verification.</div>
@@ -198,10 +216,51 @@ onMounted(loadData)
                   <li>✓ Higher bid limits</li>
                   <li>✓ Trusted bidder badge</li>
                 </ul>
-                <button class="btn-kyc" :disabled="kycLoading" @click="submitKYC">
-                  <span v-if="kycLoading" class="btn-spin"></span>
-                  {{ kycLoading ? 'Submitting…' : 'Submit for Verification' }}
+                <button class="btn-kyc" @click="showKycForm = true">
+                  Complete KYC Now
                 </button>
+              </div>
+              <div v-else class="kyc-form-wrap">
+                <div class="d-flex align-center justify-space-between mb-4">
+                  <div class="kyc-form-title">Identity Verification</div>
+                  <v-btn icon="mdi-close" variant="text" size="small" @click="showKycForm = false"></v-btn>
+                </div>
+
+                <div class="d-flex flex-column gap-4">
+                  <div class="field-wrap">
+                    <label class="field-label">Document Type</label>
+                    <select v-model="kycForm.idType" class="field">
+                      <option>Aadhaar</option>
+                      <option>PAN Card</option>
+                      <option>Passport</option>
+                      <option>Driver License</option>
+                    </select>
+                  </div>
+
+                  <div class="field-wrap">
+                    <label class="field-label">Document Number (Optional)</label>
+                    <input v-model="kycForm.idNumber" class="field" placeholder="e.g. XXXX-XXXX-XXXX" />
+                  </div>
+
+                  <MediaUpload
+                    v-model="kycForm.idUrl"
+                    label="Upload ID Document (Image or PDF)"
+                    accept="image/*,application/pdf"
+                    mode="pdf"
+                  />
+
+                  <MediaUpload
+                    v-model="kycForm.selfieUrl"
+                    label="Selfie for Face Verification"
+                    accept="image/*"
+                    mode="image"
+                  />
+
+                  <button class="btn-kyc mt-2" :disabled="kycLoading" @click="submitKYC">
+                    <span v-if="kycLoading" class="btn-spin"></span>
+                    {{ kycLoading ? 'Submitting…' : 'Submit for Review' }}
+                  </button>
+                </div>
               </div>
             </div>
             <div v-else class="kyc-card kyc-card--verified">
@@ -213,28 +272,38 @@ onMounted(loadData)
             <!-- SUBSCRIPTION & ACTIONS -->
             <div class="subscription-card">
               <div class="card-section-label">Subscription</div>
-              <div v-if="authStore.user?.subscriptionStatus === 'active'" class="subscription-active">
-                <div class="subscription-title">Premium Member</div>
-                <div class="subscription-sub">Enjoy enhanced features and priority support</div>
+              <div v-if="authStore.user?.subscriptionStatus === 'active'" class="subscription-active-banner">
+                <div class="sub-active__glow"></div>
+                <div class="sub-active__badge">✦ PRO</div>
+                <div class="sub-active__title">BidWars Pro Member</div>
+                <div class="sub-active__plan">
+                  {{ authStore.user?.subscriptionPlan === 'yearly' ? 'Annual Plan' : 'Monthly Plan' }}
+                </div>
+                <div class="sub-active__features">
+                  <div class="sub-active__feature"><span>💸</span> <strong>0% platform fee</strong> on all wins</div>
+                  <div class="sub-active__feature"><span>⚡</span> Priority bid processing</div>
+                  <div class="sub-active__feature"><span>👑</span> {{ tier }} tier membership</div>
+                  <div class="sub-active__feature"><span>🔓</span> Exclusive auction access</div>
+                </div>
                 <button class="btn-cancel-sub" @click="unsubscribe">Cancel Subscription</button>
               </div>
-              <div v-else class="subscription-plans">
-                <div class="plan-option" @click="subscribe('monthly')">
-                  <div class="plan-name">Monthly Plan</div>
-                  <div class="plan-price">₹999/month</div>
+              <div v-else class="subscription-upsell" @click="openSubscriptionModal('general')">
+                <div class="upsell-icon">✦</div>
+                <div class="upsell-content">
+                  <div class="upsell-title">Upgrade to Pro</div>
+                  <div class="upsell-sub">Remove all platform fees & unlock exclusive features</div>
+                  <div class="upsell-perks">
+                    <span>0% fees</span>
+                    <span>Priority bids</span>
+                    <span>Analytics</span>
+                  </div>
                 </div>
-                <div class="plan-option" @click="subscribe('yearly')">
-                  <div class="plan-name">Yearly Plan</div>
-                  <div class="plan-price">₹9999/year</div>
-                </div>
+                <div class="upsell-arrow">→</div>
               </div>
             </div>
 
             <div class="actions-card">
               <div class="card-section-label">Account Actions</div>
-              <button v-if="authStore.user?.kycStatus === 'pending'" class="btn-action-secondary" @click="cancelKYC">
-                Cancel KYC
-              </button>
               <button class="btn-action-secondary" @click="logout">
                 Logout
               </button>
@@ -471,6 +540,8 @@ onMounted(loadData)
 .btn-kyc:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 .btn-spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
+.kyc-form-wrap { text-align: left; }
+.kyc-form-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); }
 
 /* WINS */
 .wins-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
@@ -523,6 +594,86 @@ onMounted(loadData)
 .notif-date { font-size: 12px; color: var(--text-3); margin-top: 3px; }
 .tx-enter-active { transition: all 0.25s ease; }
 .tx-enter-from   { opacity: 0; transform: translateX(-8px); }
+
+/* SUBSCRIPTION CARD */
+.subscription-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 20px;
+  grid-column: 1 / -1;
+}
+
+.subscription-active-banner {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, rgba(212,175,55,0.08) 0%, rgba(212,175,55,0.02) 100%);
+  border: 1px solid var(--gold-border); border-radius: 14px; padding: 22px;
+  animation: subBannerIn 0.5s cubic-bezier(0.16,1,0.3,1);
+}
+@keyframes subBannerIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+.sub-active__glow {
+  position: absolute; top: 0; left: 0; right: 0; height: 80px;
+  background: radial-gradient(ellipse 80% 100% at 50% 0%, rgba(212,175,55,0.15) 0%, transparent 100%);
+  pointer-events: none;
+}
+.sub-active__badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--gold); color: #000;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 20px; margin-bottom: 10px;
+}
+.sub-active__title {
+  font-family: var(--font-display); font-size: 20px; color: var(--text); margin-bottom: 4px;
+}
+.sub-active__plan { font-size: 13px; color: var(--text-3); margin-bottom: 14px; }
+.sub-active__features { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+.sub-active__feature { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-2); }
+.sub-active__feature span { font-size: 16px; }
+.sub-active__feature strong { color: var(--text); }
+
+.btn-cancel-sub {
+  background: none; border: 1px solid var(--border-md); color: var(--text-3);
+  font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  padding: 7px 14px; border-radius: 8px; cursor: pointer; transition: all 0.15s;
+}
+.btn-cancel-sub:hover { border-color: var(--red); color: var(--red); background: var(--red-dim); }
+
+/* UPSELL CARD */
+.subscription-upsell {
+  display: flex; align-items: center; gap: 16px; cursor: pointer;
+  background: linear-gradient(135deg, var(--gold-dim) 0%, transparent 100%);
+  border: 1.5px dashed var(--gold-border); border-radius: 14px; padding: 18px 20px;
+  transition: all 0.2s;
+}
+.subscription-upsell:hover {
+  border-color: var(--gold); background: linear-gradient(135deg, rgba(212,175,55,0.12) 0%, transparent 100%);
+  transform: translateY(-1px);
+}
+.upsell-icon { font-size: 28px; color: var(--gold); flex-shrink: 0; }
+.upsell-content { flex: 1; }
+.upsell-title { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.upsell-sub { font-size: 13px; color: var(--text-3); margin-bottom: 8px; }
+.upsell-perks { display: flex; gap: 8px; flex-wrap: wrap; }
+.upsell-perks span {
+  font-size: 11px; font-weight: 700; padding: 2px 9px;
+  background: var(--gold-dim); border: 1px solid var(--gold-border);
+  color: var(--gold); border-radius: 20px;
+}
+.upsell-arrow { font-size: 20px; color: var(--gold); flex-shrink: 0; transition: transform 0.2s; }
+.subscription-upsell:hover .upsell-arrow { transform: translateX(4px); }
+
+/* Actions card */
+.actions-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 16px; padding: 20px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.btn-action-secondary {
+  width: 100%; padding: 11px 16px; border-radius: 10px;
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  color: var(--text-2); font-family: var(--font-body); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-action-secondary:hover { background: var(--bg-hover); color: var(--text); }
 
 /* PREFERENCES */
 .pref-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; max-width: 600px; }

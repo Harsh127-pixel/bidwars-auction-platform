@@ -1,5 +1,5 @@
 const admin = require("firebase-admin");
-const db = require("../config/firebase");
+const { db } = require("../config/firebase");
 
 const verifyToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -43,4 +43,26 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
-module.exports = { verifyToken, verifyAdmin };
+const verifyStaff = (req, res, next) => {
+  if (req.user && (req.user.role === "admin" || req.user.role === "employee")) {
+    next();
+  } else {
+    res.status(403).json({ message: "Access denied - Staff only" });
+  }
+};
+
+const checkPermission = (permission) => {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+    
+    if (req.user.role === "admin") return next();
+    
+    if (req.user.role === "employee" && req.user.permissions && req.user.permissions[permission]) {
+      return next();
+    }
+    
+    res.status(403).json({ message: `Access denied - Missing ${permission} permission` });
+  };
+};
+
+module.exports = { verifyToken, verifyAdmin, verifyStaff, checkPermission };

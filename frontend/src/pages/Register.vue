@@ -7,6 +7,7 @@ import { useNotification } from '../services/notification'
 
 const username = ref('')
 const email    = ref('')
+const phone    = ref('')
 const password = ref('')
 const loading  = ref(false)
 const showPass = ref(false)
@@ -17,7 +18,7 @@ const notification = useNotification()
 const handleRegister = async () => {
   loading.value = true
   try {
-    await authStore.register(email.value, password.value, username.value)
+    await authStore.register(email.value, password.value, username.value, phone.value)
     notification.add('Account created! ₹5,000 added to your wallet.', 'success')
     router.push('/')
   } catch (e) {
@@ -82,6 +83,10 @@ const handleRegister = async () => {
           <div class="field-wrap">
             <label class="field-label">Email Address</label>
             <input v-model="email" type="email" placeholder="you@example.com" required class="field" />
+          </div>
+          <div class="field-wrap">
+            <label class="field-label">Mobile Number</label>
+            <input v-model="phone" type="tel" placeholder="+91 XXXX-XXXXXX" required class="field" />
           </div>
           <div class="field-wrap">
             <label class="field-label">Password</label>

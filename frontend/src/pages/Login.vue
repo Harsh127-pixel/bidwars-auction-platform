@@ -86,11 +86,12 @@ const handleLogin = async () => {
             </div>
           </div>
 
-          <div class="field-wrap">
+          <div class="field-wrap" style="display:flex;justify-content:space-between;align-items:center">
             <label class="checkbox-label">
               <input v-model="rememberMe" type="checkbox" class="checkbox" />
               <span>Remember me</span>
             </label>
+            <router-link to="/forgot-password" class="text-link" style="font-size:13px;font-weight:600;color:var(--orange)">Forgot password?</router-link>
           </div>
 
           <button type="submit" class="btn-submit" :disabled="loading">

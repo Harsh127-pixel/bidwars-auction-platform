@@ -1,7 +1,7 @@
 const express = require("express")
 const admin = require("firebase-admin")
 const router = express.Router()
-const db = require("../config/firebase")
+const { db } = require("../config/firebase")
 const { generateListingDescription } = require("../services/aiListing")
 const { verifyToken, verifyAdmin } = require("../middleware/authMiddleware")
 const ledgerService = require("../services/ledger")
@@ -33,6 +33,17 @@ router.get("/auctions", async (req, res) => {
     res.json(auctions)
   } catch (err) {
     console.error("GET /auctions:", err.message)
+    res.status(500).json({ error: err.message })
+  }
+})
+
+// Public: Fetch single auction
+router.get("/auctions/:id", async (req, res) => {
+  try {
+    const doc = await db.collection("auctions").doc(req.params.id).get()
+    if (!doc.exists) return res.status(404).json({ error: "Auction not found" })
+    res.json({ id: doc.id, ...doc.data() })
+  } catch (err) {
     res.status(500).json({ error: err.message })
   }
 })
@@ -177,17 +188,55 @@ router.post("/admin/closeAuction", verifyToken, verifyAdmin, async (req, res) =>
 
     if (auctionData.highestBidder) {
       const winnerRef = db.collection("users").doc(auctionData.highestBidder)
+      const winnerDoc = await winnerRef.get()
+      const winnerData = winnerDoc.data()
+      const finalPrice = auctionData.highestBid
+
       await db.runTransaction(async (t) => {
-        const winnerDoc = await t.get(winnerRef)
         if (!winnerDoc.exists) return
-        const winnerData = winnerDoc.data()
-        const finalPrice = auctionData.highestBid
         t.update(winnerRef, {
           heldCredits: admin.firestore.FieldValue.increment(-finalPrice),
           totalWins: admin.firestore.FieldValue.increment(1)
         })
         ledgerService.logTransaction(t, auctionData.highestBidder, 0, "BID_WIN_FINAL",
           winnerData.credits, winnerData.credits, auctionId)
+      })
+
+      // Create Fulfillment Order
+      const orderId = `FULL-${auctionId.slice(0, 8).toUpperCase()}`
+      const fulfillmentData = {
+        auctionId,
+        auctionTitle: auctionData.title,
+        winnerId: auctionData.highestBidder,
+        winnerName: winnerData.username || winnerData.email,
+        sellerId: auctionData.sellerId,
+        amount: finalPrice,
+        status: 'processing',
+        shippingAddress: winnerData.address || 'Address not provided',
+        trackingUrl: null,
+        courierService: null,
+        invoiceId: orderId,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+      await db.collection("fulfillment_orders").doc(orderId).set(fulfillmentData)
+
+      // Background: Generate and email Invoice & Notification
+      pdfService.generateInvoice({
+        invoiceId: orderId,
+        description: `Settlement for Lot: ${auctionData.title}`,
+        amount: finalPrice
+      }, winnerData).then(pdf => {
+        emailService.sendInvoice(winnerData.email, `Win Settlement: ${auctionData.title}`, finalPrice, pdf)
+      }).catch(err => console.error("Invoice generation error on close:", err))
+
+      await db.collection("notifications").add({
+        userId: auctionData.highestBidder,
+        type: 'AUCTION_WON',
+        auctionId,
+        message: `Congratulations! You won "${auctionData.title}". Our team is processing your order.`,
+        createdAt: new Date(),
+        read: false
       })
     }
 
@@ -540,7 +589,7 @@ router.get("/notifications", verifyToken, async (req, res) => {
 })
 
 // Protected: Mark Notification Read
-router.post("/notifications/:id/read", protect, async (req, res) => {
+router.post("/notifications/:id/read", verifyToken, async (req, res) => {
   try {
     await db.collection("notifications").doc(req.params.id).update({ read: true })
     res.json({ success: true })

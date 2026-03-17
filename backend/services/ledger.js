@@ -1,5 +1,4 @@
-const db = require('../config/firebase');
-const admin = require('firebase-admin');
+const { db, admin } = require('../config/firebase');
 
 /**
  * Professional Ledger Service

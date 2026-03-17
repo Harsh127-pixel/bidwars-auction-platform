@@ -6,44 +6,46 @@
    All components reference these variables only.
 ═══════════════════════════════════════════════ */
 :root {
-  /* Surfaces */
-  --bg:          #FFFFFF;
+  /* Surfaces — warm off-white light theme */
+  --bg:          #F5F5F0;
   --bg-card:     #FFFFFF;
-  --bg-raised:   #F8F8F8;
-  --bg-hover:    #F0F0F0;
-  --bg-input:    #FAFAFA;
+  --bg-raised:   #EEEDE8;
+  --bg-hover:    #E8E7E2;
+  --bg-input:    #FAFAF8;
+  --bg-subtle:   #F0EFE9;
+  --bg-page:     #F5F5F0;
 
   /* Borders */
-  --border:      #E0E0E0;
-  --border-md:   #CCCCCC;
-  --border-strong: #999999;
+  --border:      #E0DFDA;
+  --border-md:   #C8C7C2;
+  --border-strong: #9A9995;
 
   /* Text */
-  --text:        #000000;
-  --text-2:      #333333;
-  --text-3:      #666666;
+  --text:        #1A1A18;
+  --text-2:      #3D3D3A;
+  --text-3:      #6A6A66;
   --text-inv:    #FFFFFF;
-  --text-primary: #000000;
-  --text-secondary: #555555;
-  --text-muted: #888888;
+  --text-primary: #1A1A18;
+  --text-secondary: #555550;
+  --text-muted: #8A8A86;
 
   /* Accent — amber gold */
   --gold:        #D4AF37;
   --gold-light:  #F4E87C;
-  --gold-dim:    rgba(212,175,55,0.1);
+  --gold-dim:    rgba(212,175,55,0.12);
   --gold-border: rgba(212,175,55,0.3);
   --accent: #D4AF37;
-  --accent-soft: rgba(212,175,55,0.1);
+  --accent-soft: rgba(212,175,55,0.12);
 
   /* Semantic */
-  --green:       #28A745;
-  --green-dim:   rgba(40,167,69,0.1);
-  --red:         #DC3545;
-  --red-dim:     rgba(220,53,69,0.1);
-  --blue:        #007BFF;
-  --blue-dim:    rgba(0,123,255,0.1);
-  --orange:      #FD7E14;
-  --orange-dim:  rgba(253,126,20,0.1);
+  --green:       #1A9C4A;
+  --green-dim:   rgba(26,156,74,0.1);
+  --red:         #D63031;
+  --red-dim:     rgba(214,48,49,0.1);
+  --blue:        #0984E3;
+  --blue-dim:    rgba(9,132,227,0.1);
+  --orange:      #E17055;
+  --orange-dim:  rgba(225,112,85,0.1);
 
   /* Typography */
   --font-display: 'Playfair Display', Georgia, serif;
@@ -57,39 +59,41 @@
   --r-xl:  16px;
 
   /* Shadows */
-  --shadow-sm:  0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md:  0 2px 4px rgba(0,0,0,0.1);
-  --shadow-lg:  0 4px 8px rgba(0,0,0,0.15);
-  --shadow-glow: 0 0 16px rgba(212,175,55,0.2);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.12);
+  --shadow-glow: 0 0 20px rgba(212,175,55,0.25);
 }
 
 /* Dark theme overrides */
 .dark {
-  /* Surfaces */
-  --bg:          #000000;
-  --bg-card:     #000000;
-  --bg-raised:   #111111;
-  --bg-hover:    #1A1A1A;
-  --bg-input:    #0A0A0A;
+  /* Surfaces — rich deep dark */
+  --bg:          #0D0D0B;
+  --bg-card:     #161614;
+  --bg-raised:   #1E1E1B;
+  --bg-hover:    #242420;
+  --bg-input:    #121210;
+  --bg-subtle:   #1A1A17;
+  --bg-page:     #0D0D0B;
 
   /* Borders */
-  --border:      #333333;
-  --border-md:   #444444;
-  --border-strong: #666666;
+  --border:      #2A2A26;
+  --border-md:   #363632;
+  --border-strong: #4A4A46;
 
   /* Text */
-  --text:        #FFFFFF;
-  --text-2:      #CCCCCC;
-  --text-3:      #999999;
-  --text-inv:    #000000;
-  --text-primary: #FFFFFF;
-  --text-secondary: #AAAAAA;
-  --text-muted: #777777;
+  --text:        #F0F0EC;
+  --text-2:      #C0C0BC;
+  --text-3:      #888884;
+  --text-inv:    #0D0D0B;
+  --text-primary: #F0F0EC;
+  --text-secondary: #A0A09C;
+  --text-muted: #666662;
 
   /* Shadows */
-  --shadow-sm:  0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md:  0 2px 4px rgba(0,0,0,0.5);
-  --shadow-lg:  0 4px 8px rgba(0,0,0,0.7);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.6);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.8);
 }
 
 /* ═══════════════════════════════════════════════
@@ -107,11 +111,13 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* Override Vuetify's body background */
 .v-application { background: var(--bg) !important; font-family: var(--font-body) !important; }
 .v-application__wrap { background: var(--bg) !important; }
+.v-main { background: var(--bg-page) !important; }
 
 /* ═══════════════════════════════════════════════
    TYPOGRAPHY

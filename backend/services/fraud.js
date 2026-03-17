@@ -1,4 +1,4 @@
-const db = require('../config/firebase');
+const { db } = require('../config/firebase');
 
 /**
  * FRAUD DETECTION SERVICE
@@ -72,6 +72,11 @@ class FraudService {
         }
       }
 
+      // Automatically flag account if high severity flags exist
+      if (flags.some(f => f.severity === 'high')) {
+        await this.flagAccount(userId, `Auto-flagged: ${flags.map(f => f.type).join(', ')}`);
+      }
+
     } catch (e) {
       console.error("Fraud Check Error:", e);
     }
@@ -84,6 +89,15 @@ class FraudService {
       flagged: true,
       flagReason: reason,
       updatedAt: new Date()
+    });
+  }
+
+  async flagAccount(userId, reason) {
+    await db.collection('users').doc(userId).update({
+      flaggedAt: new Date(),
+      isFlagged: true,
+      flagReason: reason,
+      status: 'review_required' // Could also block automatically
     });
   }
 }

@@ -86,3 +86,74 @@ exports.generateCertificate = (auctionData, userData) => {
     }
   });
 };
+
+/**
+ * Generates an Invoice for a transaction (Wallet Topup or Auction Win)
+ */
+exports.generateInvoice = (data, userData) => {
+  return new Promise((resolve, reject) => {
+    try {
+      const doc = new PDFDocument({ size: 'A4', margins: { top: 50, left: 50, right: 50, bottom: 50 } });
+      let buffers = [];
+      doc.on('data', buffers.push.bind(buffers));
+      doc.on('end', () => resolve(Buffer.concat(buffers)));
+
+      // Header
+      doc.fillColor('#1a237e').font('Helvetica-Bold').fontSize(24).text('TAX INVOICE', { align: 'right' });
+      doc.moveDown();
+
+      // Company Info
+      doc.fillColor('#333333').fontSize(10).font('Helvetica-Bold').text('BIDWARS AUCTION PLATFORM');
+      doc.font('Helvetica').text('123 Arbitration Square, Digital City');
+      doc.text('GSTIN: 22AAAAA0000A1Z5');
+      doc.moveDown();
+
+      // Horizontal Line
+      doc.moveTo(50, doc.y).lineTo(550, doc.y).stroke('#eeeeee');
+      doc.moveDown();
+
+      // Bill To
+      const startY = doc.y;
+      doc.fillColor('#888888').fontSize(9).text('BILL TO:');
+      doc.fillColor('#333333').fontSize(11).font('Helvetica-Bold').text(userData.username || 'User');
+      doc.font('Helvetica').fontSize(10).text(userData.email);
+      doc.text(userData.phone || 'No phone provided');
+      if (userData.address) doc.text(userData.address);
+
+      // Invoice Details
+      doc.y = startY;
+      doc.fillColor('#888888').fontSize(9).text('INVOICE NO:', { align: 'right' });
+      doc.fillColor('#333333').fontSize(10).text(data.invoiceId || uuidv4().slice(0, 8).toUpperCase(), { align: 'right' });
+      doc.fillColor('#888888').fontSize(9).text('DATE:', { align: 'right' });
+      doc.fillColor('#333333').fontSize(10).text(new Date().toLocaleDateString(), { align: 'right' });
+      doc.moveDown(2);
+
+      // Table Header
+      const tableY = doc.y;
+      doc.rect(50, tableY, 500, 20).fill('#f9f9f9');
+      doc.fillColor('#333333').fontSize(10).font('Helvetica-Bold');
+      doc.text('Description', 60, tableY + 6);
+      doc.text('Amount', 450, tableY + 6, { align: 'right', width: 90 });
+
+      // Table Row
+      doc.font('Helvetica').fontSize(10);
+      doc.text(data.description || 'Auction Winning Settlement', 60, tableY + 30);
+      doc.text(`₹ ${Number(data.amount).toLocaleString()}`, 450, tableY + 30, { align: 'right', width: 90 });
+
+      // totals
+      doc.moveDown(4);
+      doc.moveTo(350, doc.y).lineTo(550, doc.y).stroke('#eeeeee');
+      doc.moveDown(0.5);
+      
+      doc.font('Helvetica-Bold').text('TOTAL AMOUNT:', 350, doc.y);
+      doc.text(`₹ ${Number(data.amount).toLocaleString()}`, 450, doc.y, { align: 'right', width: 90 });
+
+      // Footer
+      doc.fontSize(8).fillColor('#888888').text('This is a computer generated invoice and does not require a signature.', 50, 750, { align: 'center' });
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+};

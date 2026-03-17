@@ -100,6 +100,18 @@ class ReportService {
       }
     }
   }
+
+  async getAuditLogs() {
+    const [txSnap, fulfillmentSnap] = await Promise.all([
+      db.collection('transactions').get(),
+      db.collection('fulfillment_orders').get()
+    ])
+
+    const transactions = txSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    const orders = fulfillmentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+    return { transactions, orders }
+  }
 }
 
 module.exports = new ReportService()

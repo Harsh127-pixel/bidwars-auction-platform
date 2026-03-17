@@ -1,12 +1,13 @@
-// FILE: backend/routes/paymentRoutes.js
 const express = require("express")
 const router = express.Router()
-const db = require("../config/firebase")
+const { db, admin } = require("../config/firebase")
 const { verifyToken } = require("../middleware/authMiddleware")
+const ledgerService = require("../services/ledger")
+const pdfService = require("../services/pdfService")
+const emailService = require("../services/emailService")
 
 // Simulate Razorpay for testing
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || "rzp_test_1234567890"
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "test_secret"
 
 // Create payment order
 router.post("/create-order", verifyToken, async (req, res) => {
@@ -63,16 +64,26 @@ router.post("/verify", verifyToken, async (req, res) => {
       const orderData = orderDoc.data()
       const amount = orderData.amount / 100 // Convert back from paisa
       
-      await db.collection("wallets").doc(req.user.uid).update({
-        balance: admin.firestore.FieldValue.increment(amount),
-        lastTransaction: new Date()
-      })
+      const { newBalance } = await ledgerService.recordTransaction(req.user.uid, amount, "WALLET_TOPUP")
       
-      res.json({ message: "Payment verified and wallet updated" })
+      // Background: Generate and send invoice
+      const userDoc = await db.collection("users").doc(req.user.uid).get()
+      const userData = userDoc.data()
+      
+      pdfService.generateInvoice({
+        invoiceId: orderId.toUpperCase(),
+        description: `Wallet Topup - ${orderId}`,
+        amount: amount
+      }, userData).then(pdf => {
+        emailService.sendInvoice(req.user.email, `Wallet Topup`, amount, pdf)
+      }).catch(err => console.error("Invoice generation error:", err))
+
+      res.json({ message: "Payment verified and wallet updated", balance: newBalance })
     } else {
       res.status(400).json({ error: "Invalid payment signature" })
     }
   } catch (error) {
+    console.error("Payment Verification Error:", error.message)
     res.status(500).json({ error: error.message })
   }
 })

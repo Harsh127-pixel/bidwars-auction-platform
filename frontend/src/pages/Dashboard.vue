@@ -1,11 +1,19 @@
 <!-- FILE: frontend/src/pages/Dashboard.vue -->
 <script setup>
-import ProposalForm from '../components/ProposalForm.vue'
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../store/auth'
+import { useNotification } from '../services/notification'
+import api from '../services/api'
+
 
 const authStore    = useAuthStore()
 const notification = useNotification()
 const auctions     = ref([])
+const orders       = ref([])
 const loading      = ref(true)
+const processing   = ref(false)
+const showAddFunds = ref(false)
+const topupAmount  = ref(100)
 const disputeId    = ref(null)
 const disputeReason = ref('')
 const showDisputeModal = ref(false)
@@ -32,10 +40,42 @@ const submitDispute = async () => {
   } catch { notification.add('Failed to file dispute.', 'error') }
 }
 
+const fetchOrders = async () => {
+  try {
+    const res = await api.get('/api/users/orders')
+    orders.value = res.data
+  } catch {}
+}
+
+const markDelivered = async (orderId) => {
+  if (!confirm('Have you received this item?')) return
+  processing.value = true
+  try {
+    await api.put(`/api/users/orders/${orderId}/delivered`)
+    notification.add('Item marked as delivered. Enjoy!', 'success')
+    fetchOrders()
+  } catch { notification.add('Action failed', 'error') }
+  finally { processing.value = false }
+}
+const handleAddFunds = async () => {
+  if (!topupAmount.value || topupAmount.value < 100) return notification.add('Min amount ₹100', 'error')
+  processing.value = true
+  try {
+    // We reuse the existing payment logic. Since Wallet.vue has the full UI, 
+    // here we just simulate a direct server call or redirect.
+    // For now, let's keep it simple as requested - a direct credit simulation for the dashboard "quick add"
+    await api.post('/api/payments/create-order', { amount: topupAmount.value })
+    notification.add(`Order for ₹${topupAmount.value} initiated. Redirecting to Wallet...`, 'info')
+    window.location.href = '/wallet'
+  } catch { notification.add('Action failed', 'error') }
+  finally { processing.value = false }
+}
+
 onMounted(async () => {
   try {
     const res = await api.get('/api/auctions')
     auctions.value = res.data
+    await fetchOrders()
   } catch {}
   finally { loading.value = false }
 })
@@ -64,7 +104,9 @@ onMounted(async () => {
           <div class="stat-tile__label">Available Balance</div>
           <div class="stat-tile__val stat-tile__val--large">{{ fmt(authStore.user?.credits) }}</div>
           <div class="stat-tile__sub">{{ fmt(authStore.user?.heldCredits) }} held in escrow</div>
-          <router-link to="/wallet" class="stat-tile__cta">Add Funds →</router-link>
+          <router-link to="/wallet" class="stat-tile__cta">
+            Add Funds +
+          </router-link>
         </div>
         <div class="stat-tile">
           <div class="stat-tile__icon stat-tile__icon--green">⚡</div>
@@ -85,6 +127,8 @@ onMounted(async () => {
           <div class="stat-tile__sub">{{ authStore.user?.membershipTier || 'Bronze' }} tier</div>
         </div>
       </div>
+
+
 
       <!-- KYC BANNER -->
       <Transition name="banner">
@@ -112,8 +156,6 @@ onMounted(async () => {
         <div v-else-if="activeBids.length" class="bid-list">
           <TransitionGroup name="row">
             <div v-for="a in activeBids" :key="a.id" class="bid-row">
-              <img :src="a.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?w=120&q=80'"
-                class="bid-row__img" />
               <div class="bid-row__info">
                 <div class="bid-row__title">{{ a.title }}</div>
                 <div class="bid-row__id">{{ a.id.slice(0,8).toUpperCase() }}</div>
@@ -138,6 +180,40 @@ onMounted(async () => {
         </div>
       </div>
 
+      <!-- MY ORDERS -->
+      <div v-if="orders.length" class="section fade-up fade-up-4">
+        <div class="section-head">
+          <h2 class="section-title">Shipping & Fulfillment</h2>
+        </div>
+        <div class="bid-list">
+          <div v-for="o in orders" :key="o.id" class="bid-row" style="align-items: flex-start;">
+            <div class="bid-row__info">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span class="badge" :class="o.status==='delivered'?'badge-live':o.status==='shipped'?'badge-orange':'badge-muted'">
+                  {{ o.status?.toUpperCase() }}
+                </span>
+                <div class="bid-row__title">{{ o.auctionTitle }}</div>
+              </div>
+              <div class="bid-row__id">ORDER: {{ o.id }}</div>
+              
+              <div v-if="o.status === 'shipped'" style="margin-top:12px;padding:12px;background:var(--bg-raised);border-radius:10px;border:1px solid var(--border)">
+                <div class="t-label" style="margin-bottom:4px">Tracking Information</div>
+                <div style="font-size:13px;margin-bottom:8px">Carrier: <strong>{{ o.courierService }}</strong></div>
+                <a :href="o.trackingUrl" target="_blank" class="btn-tracking">Track Shipment ↗</a>
+              </div>
+            </div>
+            
+            <div style="text-align:right">
+              <button v-if="o.status === 'shipped'" class="btn-delivered" :disabled="processing" @click="markDelivered(o.id)">
+                Confirm Receipt
+              </button>
+              <div v-else-if="o.status === 'delivered'" style="color:var(--green);font-size:12px;font-weight:700">✓ DELIVERED</div>
+              <div v-else style="color:var(--text-3);font-size:12px">Awaiting Dispatch</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- WON ITEMS -->
       <div v-if="wonItems.length" class="section fade-up fade-up-4">
         <div class="section-head">
@@ -145,8 +221,6 @@ onMounted(async () => {
         </div>
         <div class="bid-list">
           <div v-for="a in wonItems" :key="a.id" class="bid-row">
-            <img :src="a.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?w=120&q=80'"
-              class="bid-row__img" />
             <div class="bid-row__info">
               <div class="bid-row__title">{{ a.title }}</div>
               <div class="bid-row__id">{{ a.id.slice(0,8).toUpperCase() }}</div>
@@ -190,10 +264,6 @@ onMounted(async () => {
       </Transition>
     </Teleport>
 
-    <!-- PROPOSAL FORM -->
-    <div class="proposal-section fade-up fade-up-3">
-      <ProposalForm />
-    </div>
 
   </div>
 </template>
@@ -316,6 +386,16 @@ onMounted(async () => {
 }
 .btn-dispute:hover { background: rgba(248,113,113,0.2); }
 
+.btn-tracking {
+  display: inline-block; padding: 6px 12px; background: var(--blue-dim); color: var(--blue);
+  border-radius: 6px; font-size: 12px; font-weight: 700; text-decoration: none;
+}
+.btn-delivered {
+  padding: 8px 16px; background: var(--green); color: #fff; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.2s;
+}
+.btn-delivered:hover:not(:disabled) { transform: scale(1.03); background: #15803d; }
+
 /* SKELETON */
 .bid-skel-list { display: flex; flex-direction: column; gap: 8px; }
 .bid-skel {
@@ -383,6 +463,19 @@ onMounted(async () => {
 .modal-enter-from { opacity: 0; }
 .modal-enter-from .modal { transform: scale(0.95) translateY(8px); }
 .modal-leave-to { opacity: 0; }
+
+/* QUICK ADD CARD */
+.quick-add-card {
+  background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 16px;
+  padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.quick-add-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+.btn-quick-add {
+  margin-top: 12px; padding: 12px 24px; background: var(--gold); color: #000;
+  border: none; border-radius: 10px; font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-quick-add:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
 
 @media (max-width: 900px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) {
