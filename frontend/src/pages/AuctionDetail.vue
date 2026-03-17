@@ -80,13 +80,23 @@ const fetchAuction = async () => {
   } finally { loading.value = false }
 }
 
+const ensureAuth = (msg = 'Please sign in to continue') => {
+  if (!authStore.user) {
+    notification.add(msg, 'info')
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return false
+  }
+  return true
+}
+
 const joinAuction = () => {
+  if (!ensureAuth('Sign in to join this auction')) return
   joining.value = true
   setTimeout(() => { isJoined.value = true; joining.value = false; notification.add('You can now place bids', 'success') }, 800)
 }
 
 const placeBid = (amount) => {
-  if (!authStore.user)                     return notification.add('Sign in to bid', 'error')
+  if (!ensureAuth('Sign in to place a bid')) return
   if (!amount || amount < suggestedBid.value) return notification.add(`Minimum bid: ${fmt(suggestedBid.value)}`, 'warning')
   bidding.value = true
   socket.emit('placeBid', { auctionId: route.params.id, userId: authStore.user.uid, amount, isProxy: false })
@@ -94,6 +104,7 @@ const placeBid = (amount) => {
 }
 
 const setProxy = () => {
+  if (!ensureAuth('Sign in to set an auto-bid')) return
   if (!proxyCap.value || proxyCap.value <= highestBid.value)
     return notification.add('Proxy max must exceed current bid', 'warning')
   socket.emit('placeBid', { auctionId: route.params.id, userId: authStore.user.uid, amount: proxyCap.value, isProxy: true })
@@ -102,11 +113,17 @@ const setProxy = () => {
 }
 
 const buyItNow = async () => {
+  if (!ensureAuth('Sign in to buy this asset instantly')) return
   if (!confirm(`Confirm purchase for ${fmt(auction.value.buyItNow)}?`)) return
   bidding.value = true
   try { await api.post(`/api/auctions/buy-it-now/${route.params.id}`); notification.add('Purchase successful!', 'success') }
   catch (e) { notification.add(e.message || 'Purchase failed', 'error') }
   finally { bidding.value = false }
+}
+
+const handleUpsell = () => {
+  if (!ensureAuth('Sign in to subscribe to PRO')) return
+  openSubscriptionModal('fee')
 }
 
 onMounted(async () => {
@@ -312,7 +329,7 @@ onUnmounted(() => {
               <span>Total if you win</span>
               <span class="fee-total">{{ fmt(Math.round(highestBid * (1 + feeRate))) }}</span>
             </div>
-            <div v-if="!isSubscribed" class="fee-upsell" @click="openSubscriptionModal('fee')">
+            <div v-if="!isSubscribed" class="fee-upsell" @click="handleUpsell">
               <span>💸 Remove the 5% fee → <strong>Subscribe Pro</strong></span>
             </div>
           </div>

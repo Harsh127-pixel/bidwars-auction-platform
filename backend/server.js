@@ -17,6 +17,8 @@ const allowedOrigins = [
   "https://bidwars-auction-platform.onrender.com",
   "https://bidwars-auction-platform.vercel.app",
   "https://gaurangjadoun.in",
+  "https://bidwars.gaurangjadoun.in",
+  "http://bidwars.gaurangjadoun.in",
   "http://localhost",
   "https://localhost",
   "http://127.0.0.1",

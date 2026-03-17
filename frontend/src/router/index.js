@@ -15,6 +15,7 @@ import Terms from '../pages/Terms.vue'
 import Privacy from '../pages/Privacy.vue'
 import Support from '../pages/Support.vue'
 import AdminLogin from '../pages/AdminLogin.vue'
+import NotFound from '../pages/NotFound.vue'
 
 const routes = [
   { path: '/', redirect: '/auctions' },
@@ -32,7 +33,7 @@ const routes = [
   { path: '/privacy', component: Privacy, name: 'Privacy' },
   { path: '/support', component: Support, name: 'Support' },
   { path: '/admin/login', component: AdminLogin, name: 'AdminLogin' },
-  { path: '/:pathMatch(.*)*', redirect: '/auctions' },
+  { path: '/:pathMatch(.*)*', component: NotFound, name: 'NotFound' },
 ]
 
 const router = createRouter({
