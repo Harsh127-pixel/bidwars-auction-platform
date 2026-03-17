@@ -1,378 +1,650 @@
-<template>
-  <div style="background-color: var(--bg-page); min-height: 100vh;" v-if="auction">
-    <!-- Breadcrumb -->
-    <div style="background: var(--bg-card); border-bottom: 1px solid var(--border-color); padding: 12px 16px;">
-      <div style="max-width: 1280px; margin: 0 auto; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted);">
-        <router-link to="/auctions" style="color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 4px;">
-          <v-icon size="14">mdi-arrow-left</v-icon>
-          Auctions
-        </router-link>
-        <span>/</span>
-        <span style="color: var(--text-primary); font-weight: 500;">{{ auction.title }}</span>
-      </div>
-    </div>
-
-    <div style="max-width: 1280px; margin: 0 auto; padding: 32px 16px;">
-      <div class="d-flex flex-wrap" style="gap: 32px; align-items: flex-start;">
-
-        <!-- Left: Image & Details -->
-        <div style="flex: 1.2; min-width: 320px;" class="animate-in">
-          <!-- Main Image -->
-          <div style="border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); background: var(--bg-subtle); aspect-ratio: 4/3; position: relative;">
-            <v-img :src="auction.imageUrl || placeholderImage" cover style="height: 100%;"></v-img>
-            <div style="position: absolute; top: 16px; left: 16px; display: flex; gap: 8px;">
-              <span style="background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color: white; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px;">{{ auction.category }}</span>
-              <div class="live-badge" style="background: rgba(0,0,0,0.65); backdrop-filter: blur(8px); color: #4ade80; border-radius: 20px;">
-                <span class="live-dot" style="background: #4ade80;"></span>
-                Live Auction
-              </div>
-            </div>
-          </div>
-
-          <!-- Item Info -->
-          <div style="margin-top: 24px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px;">
-            <h1 class="font-display" style="font-size: clamp(24px, 3vw, 36px); color: var(--text-primary); margin: 0 0 12px; font-weight: 400; line-height: 1.2;">
-              {{ auction.title }}
-            </h1>
-            <p style="color: var(--text-secondary); font-size: 15px; line-height: 1.7; margin: 0;">{{ auction.description }}</p>
-
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color); display: flex; gap: 24px; flex-wrap: wrap;">
-              <div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">Category</div>
-                <div style="font-weight: 600; color: var(--text-primary); margin-top: 4px;">{{ auction.category }}</div>
-              </div>
-              <div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">Starting Bid</div>
-                <div style="font-weight: 600; color: var(--text-primary); margin-top: 4px;">₹{{ auction.minBid.toLocaleString() }}</div>
-              </div>
-              <div>
-                <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;">Auction ID</div>
-                <div style="font-weight: 600; color: var(--text-primary); margin-top: 4px; font-family: monospace; font-size: 13px;">{{ auction.id.slice(0, 12).toUpperCase() }}</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Stats Row -->
-          <div class="d-flex" style="gap: 12px; margin-top: 16px; flex-wrap: wrap;">
-            <div style="flex: 1; min-width: 120px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center;">
-              <div class="font-display" style="font-size: 24px; color: var(--text-primary);">24+</div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Active Bidders</div>
-            </div>
-            <div style="flex: 1; min-width: 120px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center;">
-              <div class="font-display" style="font-size: 24px; color: var(--text-primary); font-variant-numeric: tabular-nums;">{{ timeLeft }}</div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Time Left</div>
-            </div>
-            <div style="flex: 1; min-width: 120px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 16px; text-align: center;">
-              <div class="font-display" style="font-size: 24px; color: var(--success);">₹{{ lastIncrement.toLocaleString() }}</div>
-              <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Last Increase</div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Right: Bidding Panel -->
-        <div style="width: 380px; min-width: 300px; max-width: 100%; position: sticky; top: 96px;" class="animate-in animate-in-delay-2">
-
-          <!-- EMD Entry -->
-          <div v-if="!isJoined" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-            <div style="padding: 24px 24px 0;">
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-                <div style="width: 40px; height: 40px; background: var(--accent-soft); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                  <v-icon size="20" style="color: var(--accent);">mdi-lock-outline</v-icon>
-                </div>
-                <div>
-                  <h3 style="font-size: 17px; font-weight: 700; color: var(--text-primary); margin: 0;">Place a Deposit to Bid</h3>
-                  <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Fully refunded if you don't win</p>
-                </div>
-              </div>
-
-              <div style="background: var(--bg-elevated); border-radius: 10px; padding: 20px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-                  <span style="font-size: 13px; color: var(--text-secondary);">Earnest Money Deposit (EMD)</span>
-                  <span style="font-size: 12px; background: var(--success-soft); color: var(--success); padding: 2px 8px; border-radius: 12px; font-weight: 600;">Refundable</span>
-                </div>
-                <div class="bid-amount" style="font-size: 36px; color: var(--text-primary);">₹{{ (auction.minBid * 0.1).toLocaleString() }}</div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">10% of starting bid. Returned within 24hrs if you don't win.</p>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; font-size: 13px; color: var(--text-secondary);">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <v-icon size="16" style="color: var(--success);">mdi-check-circle</v-icon>
-                  Real-time bid updates
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <v-icon size="16" style="color: var(--success);">mdi-check-circle</v-icon>
-                  Secure escrow protection
-                </div>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <v-icon size="16" style="color: var(--success);">mdi-check-circle</v-icon>
-                  Auto-proxy bidding available
-                </div>
-              </div>
-            </div>
-
-            <div style="padding: 0 24px 24px;">
-              <button
-                @click="joinAuction"
-                :disabled="joining"
-                style="width: 100%; background: var(--accent); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;"
-              >
-                <v-progress-circular v-if="joining" size="16" width="2" indeterminate color="white"></v-progress-circular>
-                <span>{{ joining ? 'Authorizing...' : 'Pay Deposit & Start Bidding' }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Active Bidding Panel -->
-          <div v-else>
-            <!-- Current Price -->
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px; margin-bottom: 16px;" :style="showPriceFlash ? 'border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);' : ''">
-              <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px;">Current Highest Bid</div>
-              <div class="bid-amount" style="font-size: 42px; transition: color 0.3s ease;" :style="showPriceFlash ? 'color: var(--accent)' : 'color: var(--text-primary)'">
-                ₹{{ highestBid.toLocaleString() }}
-              </div>
-              <div v-if="lastBidStatus" style="margin-top: 10px; font-size: 13px; color: var(--success); display: flex; align-items: center; gap: 6px;">
-                <v-icon size="14">mdi-check-circle</v-icon>
-                {{ lastBidStatus }}
-              </div>
-            </div>
-
-            <!-- Quick Bid Buttons -->
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 20px; margin-bottom: 16px;">
-              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em;">Quick Bid</div>
-              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
-                  <button
-                    v-for="inc in [1000, 5000, 10000, 25000, 50000, 100000]"
-                    :key="inc"
-                    @click="placeBid(highestBid + inc)"
-                    :disabled="processingBid || auction.status !== 'active' || timeLeft === 'Ended'"
-                    style="padding: 10px 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; transition: all 0.15s ease; font-family: 'DM Sans', sans-serif; text-align: center;"
-                    class="quick-bid-btn"
-                  >
-                    +₹{{ inc >= 1000 ? (inc/1000)+'K' : inc }}
-                  </button>
-                </div>
-  
-                <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
-                  <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px;">Custom Amount</div>
-                  <div style="display: flex; gap: 8px;">
-                    <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 0 12px;">
-                      <span style="color: var(--text-muted); font-weight: 600;">₹</span>
-                      <input
-                        v-model.number="customBidAmount"
-                        type="number"
-                        :placeholder="suggestedBid.toLocaleString()"
-                        :disabled="auction.status !== 'active' || timeLeft === 'Ended'"
-                        style="flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 15px; font-weight: 600; outline: none; padding: 11px 0; font-family: 'DM Serif Display', serif;"
-                        @keyup.enter="placeBid(customBidAmount)"
-                      />
-                    </div>
-                    <button
-                      @click="placeBid(customBidAmount)"
-                      :disabled="!customBidAmount || customBidAmount < suggestedBid || processingBid || auction.status !== 'active' || timeLeft === 'Ended'"
-                      style="background: var(--accent); color: white; border: none; padding: 0 18px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: 'DM Sans', sans-serif; white-space: nowrap; opacity: 1;"
-                      :style="(!customBidAmount || customBidAmount < suggestedBid || auction.status !== 'active' || timeLeft === 'Ended') ? 'opacity: 0.4; cursor: not-allowed;' : ''"
-                    >
-                      Place Bid
-                    </button>
-                </div>
-                <p style="font-size: 12px; color: var(--text-muted); margin-top: 8px;">Minimum bid: ₹{{ suggestedBid.toLocaleString() }}</p>
-              </div>
-            </div>
-
-            <!-- Fee Breakdown -->
-            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 20px; margin-bottom: 16px;">
-              <div style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.06em;">If You Win at ₹{{ highestBid.toLocaleString() }}</div>
-              <div style="display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-secondary);">
-                  <span>Hammer price</span>
-                  <span style="color: var(--text-primary); font-weight: 500;">₹{{ highestBid.toLocaleString() }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 14px; color: var(--text-secondary);">
-                  <span>Buyer's premium (5%)</span>
-                  <span style="color: var(--text-primary); font-weight: 500;">₹{{ Math.round(highestBid * 0.05).toLocaleString() }}</span>
-                </div>
-                <div style="border-top: 1px solid var(--border-color); padding-top: 10px; display: flex; justify-content: space-between; font-size: 15px; font-weight: 700; color: var(--text-primary);">
-                  <span>Total payable</span>
-                  <span style="color: var(--accent);" class="bid-amount">₹{{ Math.round(highestBid * 1.05).toLocaleString() }}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Proxy Bid -->
-            <div style="background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 14px; padding: 20px;">
-              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 14px;">
-                <v-icon size="20" style="color: var(--accent);">mdi-robot-outline</v-icon>
-                <div>
-                  <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Auto-Bid (Proxy)</div>
-                  <div style="font-size: 12px; color: var(--text-muted);">Bid automatically up to your max</div>
-                </div>
-              </div>
-              <div style="display: flex; gap: 8px;">
-                <div style="flex: 1; display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 0 12px;">
-                  <span style="color: var(--text-muted); font-weight: 600;">₹</span>
-                  <input v-model.number="proxyCeiling" type="number" placeholder="Your max amount" style="flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 14px; outline: none; padding: 10px 0; font-family: 'DM Sans', sans-serif;" />
-                </div>
-                <button @click="setProxy" style="background: var(--bg-elevated); color: var(--accent); border: 1px solid var(--border-color); padding: 0 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; white-space: nowrap;">
-                  Set Max
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Loading State -->
-  <div v-else style="display: flex; align-items: center; justify-content: center; min-height: 60vh; background: var(--bg-page);">
-    <div style="text-align: center;">
-      <v-progress-circular indeterminate color="primary" size="48" width="4"></v-progress-circular>
-      <p style="color: var(--text-muted); margin-top: 16px; font-size: 14px;">Loading auction...</p>
-    </div>
-  </div>
-</template>
-
+<!-- FILE: frontend/src/pages/AuctionDetail.vue -->
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../store/auth'
 import api from '../services/api'
 import socket from '../services/socket'
 import { useNotification } from '../services/notification'
 
+const route        = useRoute()
+const router       = useRouter()
+const authStore    = useAuthStore()
 const notification = useNotification()
-const authStore = useAuthStore()
-const route = useRoute()
+const openSubscriptionModal = inject('openSubscriptionModal', () => {})
 
-const auction = ref(null)
+const auction    = ref(null)
+const loading    = ref(true)
 const highestBid = ref(0)
-const lastIncrement = ref(1000)
-const isJoined = ref(false)
-const joining = ref(false)
-const timeLeft = ref("--:--:--")
-const isExtended = ref(false)
-const proxyCeiling = ref(null)
-const processingBid = ref(false)
-const showPriceFlash = ref(false)
-const lastBidStatus = ref('')
-const customBidAmount = ref(null)
-const placeholderImage = 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=800'
+const customBid  = ref(null)
+const proxyCap   = ref(null)
+const isJoined   = ref(false)
+const joining    = ref(false)
+const bidding    = ref(false)
+const timeLeft   = ref('--:--:--')
+const flash      = ref(false)
+const sentiment  = ref(null)
+const sentimentLoading = ref(false)
+const urgent     = ref(false)
+let timerInterval = null
 
-const userId = computed(() => authStore.user?.uid || 'anonymous')
-const suggestedBid = computed(() => (highestBid.value || (auction.value?.minBid ?? 0)) + 1000)
-
-const setProxy = () => {
-  if (!proxyCeiling.value || proxyCeiling.value <= highestBid.value) {
-    return notification.add('Set a proxy amount higher than current bid', 'error')
-  }
-  socket.emit('setProxyBid', { auctionId: route.params.id, userId: userId.value, ceiling: proxyCeiling.value })
-  notification.add(`Auto-bid set: ₹${proxyCeiling.value.toLocaleString()}`, 'success')
-}
+const fmt          = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
+const suggestedBid = computed(() => highestBid.value + 1000)
+const quickBids    = computed(() => [1000, 5000, 10000, 25000, 50000].map(s => highestBid.value + s))
+const isSubscribed = computed(() => authStore.user?.subscriptionStatus === 'active')
+const feeRate      = computed(() => isSubscribed.value ? 0 : 0.05)
 
 const updateTimer = () => {
-  if (!auction.value?.endTime || timeLeft.value === "Ended") return
+  if (!auction.value?.endTime) return
   const diff = new Date(auction.value.endTime).getTime() - Date.now()
-  if (diff <= 0) { 
-    timeLeft.value = "Ended"
-    notification.add("Bidding period has expired. Finalizing results...", "info")
-    return 
-  }
-  const h = Math.floor(diff / 3600000).toString().padStart(2, '0')
-  const m = Math.floor((diff % 3600000) / 60000).toString().padStart(2, '0')
-  const s = Math.floor((diff % 60000) / 1000).toString().padStart(2, '0')
+  if (diff <= 0) { timeLeft.value = 'Ended'; urgent.value = false; return }
+  urgent.value = diff < 300000 // last 5 min
+  const h = String(Math.floor(diff / 3600000)).padStart(2,'0')
+  const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2,'0')
+  const s = String(Math.floor((diff % 60000) / 1000)).padStart(2,'0')
   timeLeft.value = `${h}:${m}:${s}`
 }
 
-let timerInterval
-
-const joinAuction = async () => {
-  const emd = (auction.value?.minBid || 0) * 0.1
-  if (authStore.user?.credits < emd) {
-    return notification.add(`Insufficient balance. Need ₹${emd.toLocaleString()} deposit.`, 'error')
-  }
-  joining.value = true
-  setTimeout(() => {
-    isJoined.value = true
-    joining.value = false
-    notification.add('Deposit placed! You can now bid.', 'success')
-  }, 1500)
+const fetchAuction = async () => {
+  loading.value = true
+  try {
+    // 1. Try single fetch first (more efficient)
+    try {
+      const res = await api.get(`/api/auctions/${route.params.id}`)
+      auction.value = res.data
+    } catch (e) {
+      // 2. Fallback to list if single fetch fails
+      const res = await api.get('/api/auctions')
+      const found = res.data.find(a => String(a.id) === String(route.params.id))
+      if (!found) {
+        notification.add('Auction not found', 'error')
+        router.push('/auctions'); return
+      }
+      auction.value = found
+    }
+    
+    const found = auction.value
+    if (found.endTime?._seconds) found.endTime = new Date(found.endTime._seconds * 1000).toISOString()
+    else if (found.endTime?.seconds) found.endTime = new Date(found.endTime.seconds * 1000).toISOString()
+    
+    highestBid.value = found.highestBid || found.minBid || 0
+    isJoined.value   = found.participants?.includes(authStore.user?.uid) || false
+  } catch (err) { 
+    console.error('Fetch error:', err)
+    router.push('/auctions') 
+  } finally { loading.value = false }
 }
 
-const fetchAuction = async () => {
+const ensureAuth = async (msg = 'Please sign in to continue') => {
+  // Wait for Firebase to resolve auth state (page refresh race condition)
+  if (authStore.loading) {
+    await new Promise((resolve) => {
+      const maxWait = setTimeout(resolve, 3000)
+      const stop = authStore.$subscribe(() => {
+        if (!authStore.loading) { clearTimeout(maxWait); stop(); resolve() }
+      })
+    })
+  }
+  if (!authStore.user) {
+    notification.add(msg, 'info')
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return false
+  }
+  return true
+}
+
+const joinAuction = async () => {
+  if (!ensureAuth('Sign in to join this auction')) return
+  joining.value = true
   try {
-    const res = await api.get('/api/auctions')
-    const found = res.data.find(a => String(a.id) === String(route.params.id))
-    if (found) {
-      auction.value = { ...found, endTime: found.endTime || new Date(Date.now() + 3600000).toISOString() }
-      highestBid.value = found.highestBid || found.minBid
-    } else throw new Error('not found')
-  } catch {
-    auction.value = {
-      id: route.params.id, title: 'Vintage Rolex Submariner',
-      description: 'Rare 1970s model in pristine condition. Certified authentic.', minBid: 450000,
-      highestBid: 520000, category: 'Watches',
-      imageUrl: 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=800',
-      endTime: new Date(Date.now() + 5000000).toISOString()
-    }
-    highestBid.value = 520000
+    await api.post(`/api/auctions/${route.params.id}/join`)
+    isJoined.value = true
+    notification.add('You can now place bids', 'success')
+  } catch (err) {
+    notification.add('Failed to join: ' + (err.response?.data?.error || err.message), 'error')
+  } finally {
+    joining.value = false
   }
 }
 
 const placeBid = (amount) => {
-  if (!amount || amount < suggestedBid.value) return
-  processingBid.value = true
-  lastIncrement.value = amount - highestBid.value
-  socket.emit('placeBid', { auctionId: route.params.id, userId: userId.value, amount })
-  setTimeout(() => { processingBid.value = false; customBidAmount.value = null }, 800)
+  if (!ensureAuth('Sign in to place a bid')) return
+  if (!amount || amount < suggestedBid.value) return notification.add(`Minimum bid: ${fmt(suggestedBid.value)}`, 'warning')
+  bidding.value = true
+  socket.emit('placeBid', { auctionId: route.params.id, userId: authStore.user.uid, amount, isProxy: false })
+  setTimeout(() => { bidding.value = false; customBid.value = null }, 2000)
+}
+
+const setProxy = () => {
+  if (!ensureAuth('Sign in to set an auto-bid')) return
+  if (!proxyCap.value || proxyCap.value <= highestBid.value)
+    return notification.add('Proxy max must exceed current bid', 'warning')
+  socket.emit('placeBid', { auctionId: route.params.id, userId: authStore.user.uid, amount: proxyCap.value, isProxy: true })
+  notification.add(`Proxy set at ${fmt(proxyCap.value)}`, 'success')
+  proxyCap.value = null
+}
+
+const buyItNow = async () => {
+  if (!ensureAuth('Sign in to buy this asset instantly')) return
+  if (!confirm(`Confirm purchase for ${fmt(auction.value.buyItNow)}?`)) return
+  bidding.value = true
+  try { await api.post(`/api/auctions/buy-it-now/${route.params.id}`); notification.add('Purchase successful!', 'success') }
+  catch (e) { notification.add(e.message || 'Purchase failed', 'error') }
+  finally { bidding.value = false }
+}
+
+const fetchSentiment = async () => {
+  sentimentLoading.value = true
+  try {
+    const res = await api.get(`/api/auctions/${route.params.id}/sentiment`)
+    sentiment.value = res.data.sentiment
+  } catch {}
+  finally { sentimentLoading.value = false }
+}
+
+const handleUpsell = () => {
+  if (!ensureAuth('Sign in to subscribe to PRO')) return
+  openSubscriptionModal('fee')
 }
 
 onMounted(async () => {
   await fetchAuction()
+  fetchSentiment()
   timerInterval = setInterval(updateTimer, 1000)
+
   socket.on('bidUpdate', (data) => {
-    if (String(data.auctionId) === String(route.params.id)) {
-      const prev = highestBid.value
-      highestBid.value = parseFloat(data.amount)
-      lastIncrement.value = highestBid.value - prev
-      showPriceFlash.value = true
-      lastBidStatus.value = `Bid of ₹${highestBid.value.toLocaleString()} accepted`
-      setTimeout(() => { showPriceFlash.value = false; lastBidStatus.value = '' }, 3000)
+    if (String(data.auctionId) !== String(route.params.id)) return
+    highestBid.value = parseFloat(data.amount)
+    if (auction.value) {
+      auction.value.bidCount = data.bidCount
+      auction.value.highestBidder = data.userId
+      auction.value.reserveMet = data.reserveMet
     }
+    flash.value = true; setTimeout(() => { flash.value = false }, 2000)
   })
   socket.on('timerExtension', (data) => {
-    if (String(data.auctionId) === String(route.params.id)) {
-      auction.value.endTime = data.newEndTime
-      isExtended.value = true
-      notification.add('Timer extended! Last-minute bids received.', 'info')
-    }
+    if (String(data.auctionId) !== String(route.params.id)) return
+    auction.value.endTime = data.newEndTime; notification.add('Timer extended!', 'info')
   })
   socket.on('biddingStopped', (data) => {
-    if (String(data.auctionId) === String(route.params.id)) {
-      auction.value.status = data.status
-      if (data.status === 'closed') {
-        const isWinner = data.winner === userId.value
-        notification.add(isWinner ? 'CONGRATULATIONS! You won the auction!' : 'Bidding has stopped. Auction closed.', isWinner ? 'success' : 'warning')
-      } else if (data.status === 'deleted') {
-        notification.add('This auction has been cancelled by administration.', 'error')
-        router.push('/auctions')
-      }
-    }
+    if (String(data.auctionId) !== String(route.params.id)) return
+    auction.value.status = data.status
+    const won = data.winner === authStore.user?.uid
+    notification.add(won ? 'You won! 🏆' : 'Auction closed.', won ? 'success' : 'info')
   })
+  socket.on('error', (err) => { bidding.value = false; notification.add(err.message || 'Bid rejected', 'error') })
 })
 
 onUnmounted(() => {
-  socket.off('bidUpdate')
-  socket.off('timerExtension')
-  socket.off('biddingStopped')
   clearInterval(timerInterval)
+  socket.off('bidUpdate'); socket.off('timerExtension'); socket.off('biddingStopped'); socket.off('error')
 })
 </script>
 
+<template>
+  <!-- LOADING -->
+  <div v-if="loading" class="loading-screen">
+    <div class="load-ring"></div>
+    <div class="load-label">Loading auction…</div>
+  </div>
+
+  <div v-else-if="auction" class="detail-page">
+    <!-- BREADCRUMB -->
+    <div class="breadcrumb">
+      <div class="page-wrap breadcrumb__inner">
+        <router-link to="/auctions" class="bc-back">← Auctions</router-link>
+        <span class="bc-sep">/</span>
+        <span class="bc-current">{{ auction.title }}</span>
+        <div class="bc-badges">
+          <span class="badge-live-sm"><span class="live-dot"></span>Live</span>
+          <span class="bc-cat">{{ auction.category }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-wrap detail-body">
+      <div class="detail-layout">
+
+        <!-- LEFT -->
+        <div class="detail-left fade-up">
+          <!-- Image -->
+          <div class="detail-img">
+            <img :src="auction.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?w=1200&q=80'"
+              :alt="auction.title" />
+            <div class="detail-img__overlay">
+              <span class="lot-badge">LOT-{{ auction.id.slice(0,8).toUpperCase() }}</span>
+            </div>
+          </div>
+
+          <!-- Info card -->
+          <div class="info-card">
+            <h1 class="info-title">{{ auction.title }}</h1>
+            <p class="info-desc">{{ auction.description }}</p>
+            <div class="info-meta">
+              <div class="info-meta__item">
+                <div class="info-meta__label">Starting Price</div>
+                <div class="info-meta__val">{{ fmt(auction.minBid) }}</div>
+              </div>
+              <div class="info-meta__item">
+                <div class="info-meta__label">Escrow</div>
+                <div class="info-meta__val info-meta__val--green">✓ Protected</div>
+              </div>
+              <div v-if="auction.reservePrice" class="info-meta__item">
+                <div class="info-meta__label">Reserve</div>
+                <div class="info-meta__val" :style="auction.reserveMet ? 'color:var(--green)' : ''">
+                  {{ auction.reserveMet ? '✓ Met' : 'Not met' }}
+                </div>
+              </div>
+              <div class="info-meta__item">
+                <div class="info-meta__label">Total Bids</div>
+                <div class="info-meta__val">{{ auction.bidCount || 0 }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- AI INSIGHTS -->
+          <div v-if="sentiment || sentimentLoading" class="ai-sentiment-card">
+            <div class="ai-sentiment-card__glow"></div>
+            <div class="ai-sentiment-head">
+               <span class="ai-sentiment-icon">✦</span>
+               <div class="ai-sentiment-title">AI Market Sentiment</div>
+            </div>
+            <div v-if="sentimentLoading" class="ai-sentiment-loading">
+               <v-progress-linear indeterminate color="var(--orange)" height="2"></v-progress-linear>
+               <div class="mt-2" style="font-size:12px;opacity:0.7">Gemini is analyzing market trends...</div>
+            </div>
+            <div v-else class="ai-sentiment-body">
+              {{ sentiment }}
+            </div>
+            <div class="ai-sentiment-footer">Powered by Gemini 1.5 Flash</div>
+          </div>
+        </div>
+
+        <!-- RIGHT: sticky bid panel -->
+        <div class="detail-right fade-up fade-up-2">
+
+          <!-- Price + Timer -->
+          <div class="price-card" :class="{'price-card--flash': flash, 'price-card--urgent': urgent}">
+            <div class="price-card__label">Current Highest Bid</div>
+            <div class="price-card__amount">{{ fmt(highestBid) }}</div>
+            <div class="price-card__timer">
+              <span class="price-card__timer-label">Time Left</span>
+              <span class="price-card__countdown"
+                :class="{'price-card__countdown--ended': timeLeft === 'Ended', 'price-card__countdown--urgent': urgent}">
+                {{ timeLeft }}
+              </span>
+            </div>
+            <div v-if="urgent && timeLeft !== 'Ended'" class="price-card__urgent-bar">
+              <div class="urgent-pulse"></div>
+              Ending soon — bid now!
+            </div>
+          </div>
+
+          <!-- JOIN GATE -->
+          <div v-if="!isJoined && timeLeft !== 'Ended'" class="join-gate">
+            <div class="join-gate__title">Enter to Bid</div>
+            <div class="join-gate__sub">A refundable deposit of {{ fmt((auction.minBid||0) * 0.1) }} is held while you participate.</div>
+<button class="btn-join" :disabled="joining || authStore.loading" @click="joinAuction">
+  {{ authStore.loading ? 'Loading…' : joining ? 'Authorizing…' : 'Place Deposit & Start Bidding' }}
+</button>
+          </div>
+
+          <!-- ENDED BANNER -->
+          <div v-else-if="timeLeft === 'Ended'" class="ended-banner">
+            <div class="ended-banner__icon">🔔</div>
+            <div class="ended-banner__title">Auction Ended</div>
+          </div>
+
+          <!-- ACTIVE BIDDING -->
+          <div v-else class="bid-controls">
+            <!-- Quick bids -->
+            <div class="bid-section">
+              <div class="bid-section__label">Quick Bid</div>
+              <div class="quick-grid">
+                <button v-for="amount in quickBids" :key="amount"
+                  class="quick-btn" :disabled="bidding"
+                  @click="placeBid(amount)">
+                  {{ fmt(amount) }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Custom bid -->
+            <div class="bid-section">
+              <div class="bid-section__label">Custom Amount</div>
+              <div class="bid-input-row">
+                <div class="bid-input-wrap">
+                  <span class="bid-prefix">₹</span>
+                  <input v-model.number="customBid" type="number"
+                    :placeholder="(highestBid + 1000).toLocaleString('en-IN')"
+                    class="field bid-input" />
+                </div>
+                <button class="btn-bid"
+                  :disabled="!customBid || customBid < suggestedBid || bidding"
+                  @click="placeBid(customBid)">
+                  <span v-if="bidding" class="btn-spin btn-spin--dark"></span>
+                  {{ bidding ? '…' : 'Bid' }}
+                </button>
+              </div>
+              <div class="bid-min">Min: {{ fmt(suggestedBid) }}</div>
+            </div>
+
+            <!-- Proxy -->
+            <div class="bid-section bid-section--subtle">
+              <div class="bid-section__label">Auto-Bid (Proxy)</div>
+              <div class="bid-input-row">
+                <div class="bid-input-wrap">
+                  <span class="bid-prefix">₹</span>
+                  <input v-model.number="proxyCap" type="number" placeholder="Your max amount" class="field bid-input" />
+                </div>
+                <button class="btn-proxy" :disabled="!proxyCap" @click="setProxy">Set Max</button>
+              </div>
+              <div class="bid-min">System auto-bids up to your max, one increment at a time.</div>
+            </div>
+
+            <!-- Buy It Now -->
+            <div v-if="auction.buyItNow && !auction.bidCount" class="bin-card">
+              <div class="bin-card__left">
+                <div class="bin-card__label">Buy It Now</div>
+                <div class="bin-card__price">{{ fmt(auction.buyItNow) }}</div>
+              </div>
+              <button class="btn-bin" :disabled="bidding" @click="buyItNow">Buy Now ⚡</button>
+            </div>
+          </div>
+
+          <!-- FEE BREAKDOWN -->
+          <div class="fee-card" :class="{ 'fee-card--subscribed': isSubscribed }">
+            <div class="fee-row">
+              <span>Hammer price</span>
+              <span>{{ fmt(highestBid) }}</span>
+            </div>
+            <div class="fee-row" :class="{ 'fee-row--waived': isSubscribed }">
+              <span>
+                Buyer's premium
+                <span v-if="isSubscribed" class="fee-badge-pro">PRO</span>
+                <span v-else class="fee-badge-rate">(5%)</span>
+              </span>
+              <span v-if="isSubscribed" class="fee-waived">₹0 Waived ✓</span>
+              <span v-else>{{ fmt(Math.round(highestBid * 0.05)) }}</span>
+            </div>
+            <div class="fee-divider"></div>
+            <div class="fee-row fee-row--total">
+              <span>Total if you win</span>
+              <span class="fee-total">{{ fmt(Math.round(highestBid * (1 + feeRate))) }}</span>
+            </div>
+            <div v-if="!isSubscribed" class="fee-upsell" @click="handleUpsell">
+              <span>💸 Remove the 5% fee → <strong>Subscribe Pro</strong></span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.quick-bid-btn:hover:not(:disabled) {
-  background: var(--accent-soft) !important;
-  border-color: var(--accent) !important;
-  color: var(--accent) !important;
+/* LOADING */
+.loading-screen { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: var(--bg); gap: 16px; }
+.load-ring { width: 44px; height: 44px; border: 3px solid var(--border-md); border-top-color: var(--orange); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.load-label { font-size: 13px; color: var(--text-3); letter-spacing: 0.05em; text-transform: uppercase; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* BREADCRUMB */
+.breadcrumb { background: var(--bg-card); border-bottom: 1px solid var(--border); padding: 12px 0; }
+.breadcrumb__inner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bc-back { font-size: 13px; color: var(--text-2); text-decoration: none; transition: color 0.15s; }
+.bc-back:hover { color: var(--orange); }
+.bc-sep  { color: var(--text-3); }
+.bc-current { font-size: 13px; color: var(--text-2); flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.bc-badges { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.badge-live-sm {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--green-dim); border: 1px solid rgba(74,222,128,0.2);
+  border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--green);
 }
-.quick-bid-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.bc-cat { font-size: 12px; color: var(--text-3); background: var(--bg-raised); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; }
+
+/* BODY */
+.detail-page { min-height: 100vh; background: var(--bg); }
+.detail-body { padding: 28px 0 64px; }
+.detail-layout { display: grid; grid-template-columns: 1fr 380px; gap: 32px; align-items: start; }
+
+/* LEFT */
+.detail-img { border-radius: 18px; overflow: hidden; aspect-ratio: 4/3; background: var(--bg-raised); position: relative; }
+.detail-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+.detail-img:hover img { transform: scale(1.03); }
+.detail-img__overlay { position: absolute; top: 16px; left: 16px; }
+.lot-badge {
+  display: inline-block; padding: 5px 12px;
+  background: rgba(0,0,0,0.55); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: 20px;
+  font-family: var(--font-mono); font-size: 11px; color: rgba(255,255,255,0.8);
+}
+
+.info-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; padding: 28px; margin-top: 20px; }
+.info-title { font-family: var(--font-display); font-size: clamp(22px, 3vw, 34px); color: var(--text); margin-bottom: 14px; }
+.info-desc  { font-size: 15px; color: var(--text-2); line-height: 1.75; margin-bottom: 24px; }
+.info-meta  { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 20px; border-top: 1px solid var(--border); }
+.info-meta__label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 5px; }
+.info-meta__val { font-family: var(--font-display); font-size: 18px; color: var(--text); }
+.info-meta__val--green { color: var(--green); font-size: 14px; font-family: var(--font-body); font-weight: 600; }
+
+/* RIGHT: STICKY */
+.detail-right { position: sticky; top: 80px; display: flex; flex-direction: column; gap: 12px; }
+
+/* PRICE CARD */
+.price-card {
+  background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 18px; padding: 24px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.price-card--flash  { border-color: rgba(251,146,60,0.5); box-shadow: 0 0 32px rgba(251,146,60,0.12); }
+.price-card--urgent { border-color: rgba(248,113,113,0.4); }
+.price-card__label  { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 8px; }
+.price-card__amount {
+  font-family: var(--font-display); font-size: 48px; color: var(--text);
+  margin-bottom: 16px; transition: color 0.3s; line-height: 1;
+}
+.price-card--flash .price-card__amount { color: var(--orange); }
+.price-card__timer { display: flex; align-items: center; justify-content: space-between; }
+.price-card__timer-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.price-card__countdown { font-family: var(--font-mono); font-size: 22px; color: var(--text); }
+.price-card__countdown--ended  { color: var(--red); }
+.price-card__countdown--urgent { color: var(--red); animation: urgentFlash 1s ease infinite; }
+@keyframes urgentFlash { 0%,100%{opacity:1} 50%{opacity:0.6} }
+.price-card__urgent-bar {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 14px; padding: 10px 14px; background: var(--red-dim);
+  border: 1px solid rgba(248,113,113,0.2); border-radius: 10px;
+  font-size: 13px; color: var(--red); font-weight: 600;
+}
+.urgent-pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--red); animation: pulse 1s ease infinite; flex-shrink: 0; }
+@keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.4)} }
+
+/* JOIN GATE */
+.join-gate { background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 16px; padding: 22px; }
+.join-gate__title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.join-gate__sub   { font-size: 13px; color: var(--text-2); margin-bottom: 18px; line-height: 1.5; }
+.btn-join {
+  width: 100%; padding: 14px; background: var(--orange); color: #fff;
+  border: none; border-radius: 12px; font-family: var(--font-body); font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 18px rgba(251,146,60,0.3);
+}
+.btn-join:hover:not(:disabled) { background: #f97316; transform: translateY(-1px); }
+.btn-join:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* ENDED */
+.ended-banner {
+  background: var(--bg-raised); border: 1px solid var(--border);
+  border-radius: 16px; padding: 28px; text-align: center;
+}
+.ended-banner__icon  { font-size: 36px; margin-bottom: 8px; }
+.ended-banner__title { font-family: var(--font-display); font-size: 20px; color: var(--text-2); }
+
+/* BID CONTROLS */
+.bid-controls { display: flex; flex-direction: column; gap: 10px; }
+.bid-section {
+  background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 14px; padding: 18px;
+}
+.bid-section--subtle { background: var(--bg-raised); border-color: var(--border); }
+.bid-section__label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 12px; }
+
+.quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.quick-btn {
+  padding: 10px 6px; background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 10px; color: var(--text-2); font-family: var(--font-body);
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.quick-btn:hover:not(:disabled) { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+.quick-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.bid-input-row { display: flex; gap: 8px; }
+.bid-input-wrap { position: relative; flex: 1; }
+.bid-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-2); pointer-events: none; }
+.bid-input { padding-left: 24px !important; font-weight: 600; }
+.bid-min { font-size: 11px; color: var(--text-3); margin-top: 8px; }
+
+.btn-bid {
+  padding: 10px 20px; background: var(--orange); color: #fff; border: none; border-radius: 10px;
+  font-family: var(--font-body); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  box-shadow: 0 2px 12px rgba(251,146,60,0.25);
+}
+.btn-bid:hover:not(:disabled) { background: #f97316; }
+.btn-bid:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-proxy {
+  padding: 10px 16px; background: var(--bg-hover); border: 1px solid var(--border-md);
+  border-radius: 10px; color: var(--text-2); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-proxy:hover:not(:disabled) { background: var(--bg-raised); color: var(--text); }
+.btn-proxy:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* BUY IT NOW */
+.bin-card {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.3);
+  border-radius: 14px; padding: 18px 20px;
+}
+.bin-card__label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--orange); margin-bottom: 4px; }
+.bin-card__price { font-family: var(--font-display); font-size: 26px; color: var(--text); }
+.btn-bin {
+  padding: 12px 20px; background: var(--orange); color: #fff; border: none; border-radius: 10px;
+  font-family: var(--font-body); font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+  flex-shrink: 0; box-shadow: 0 4px 14px rgba(251,146,60,0.3);
+}
+.btn-bin:hover:not(:disabled) { background: #f97316; transform: translateY(-1px); }
+.btn-bin:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* FEE CARD */
+.fee-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 14px; padding: 16px 20px;
+  transition: border-color 0.3s;
+}
+.fee-card--subscribed {
+  border-color: var(--gold-border);
+  background: linear-gradient(145deg, var(--bg-card) 0%, rgba(212,175,55,0.03) 100%);
+}
+.fee-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; color: var(--text-2); margin-bottom: 10px; gap: 8px; }
+.fee-row--total { margin-bottom: 0; font-weight: 600; font-size: 14px; color: var(--text); }
+.fee-row--waived { color: var(--text-3); }
+.fee-total { color: var(--orange); }
+.fee-divider { border: none; border-top: 1px solid var(--border); margin-bottom: 10px; }
+.fee-badge-pro {
+  display: inline-block; background: var(--gold); color: #000;
+  font-size: 9px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 4px; margin-left: 4px; vertical-align: middle;
+}
+.fee-badge-rate { color: var(--text-3); font-size: 12px; }
+.fee-waived { color: var(--green); font-weight: 700; font-size: 13px; }
+.fee-upsell {
+  margin-top: 12px; padding: 10px 14px;
+  background: var(--gold-dim); border: 1px dashed var(--gold-border);
+  border-radius: 10px; font-size: 12px; color: var(--text-2);
+  cursor: pointer; text-align: center; transition: all 0.15s;
+}
+.fee-upsell:hover { background: var(--gold-border); color: var(--text); }
+.fee-upsell strong { color: var(--gold); }
+
+/* Spinner */
+.btn-spin { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.btn-spin--dark { border-color: rgba(0,0,0,0.2); border-top-color: var(--text-inv); }
+
+/* RESPONSIVE */
+@media (max-width: 1024px) {
+  .detail-layout { grid-template-columns: 1fr; }
+  .detail-right { position: static; }
+}
+@media (max-width: 640px) {
+  .detail-body { padding: 16px 0 48px; }
+  .quick-grid { grid-template-columns: repeat(2, 1fr); }
+  .bid-input-row { flex-direction: column; }
+  .btn-bid, .btn-proxy { width: 100%; justify-content: center; }
+  .bin-card { flex-direction: column; align-items: flex-start; }
+  .btn-bin { width: 100%; }
+}
+/* AI SENTIMENT CARD */
+.ai-sentiment-card {
+  margin-top: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-md);
+  border-radius: 16px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+.ai-sentiment-card__glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 0% 0%, rgba(251,146,60,0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+.ai-sentiment-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.ai-sentiment-icon {
+  width: 28px;
+  height: 28px;
+  background: var(--orange-dim);
+  color: var(--orange);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+.ai-sentiment-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+.ai-sentiment-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-2);
+  font-style: italic;
+}
+.ai-sentiment-footer {
+  margin-top: 16px;
+  font-size: 10px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: right;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.ai-sentiment-loading {
+  padding: 8px 0;
+}
 </style>

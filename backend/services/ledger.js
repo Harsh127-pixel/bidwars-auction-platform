@@ -1,11 +1,18 @@
-const db = require('../config/firebase');
-const admin = require('firebase-admin');
+const firebase = require('../config/firebase');
 
 /**
  * Professional Ledger Service
  * Handles atomic credit movements and transaction logging.
  */
 class LedgerService {
+  get db() {
+    if (!firebase.db) throw new Error("Firestore 'db' not initialized in LedgerService");
+    return firebase.db;
+  }
+
+  get admin() {
+    return firebase.admin;
+  }
   /**
    * Log a transaction entry within an existing Firestore transaction
    * @param {object} transaction - Firestore Transaction object
@@ -17,7 +24,7 @@ class LedgerService {
    * @param {string} auctionId - Associated auction
    */
   logTransaction(transaction, userId, amount, type, prevBalance, newBalance, auctionId = null) {
-    const ledgerRef = db.collection('transactions').doc();
+    const ledgerRef = this.db.collection('transactions').doc();
     transaction.set(ledgerRef, {
       userId,
       amount,
@@ -26,7 +33,7 @@ class LedgerService {
       prevBalance,
       newBalance,
       status: 'COMPLETED',
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
+      createdAt: this.admin.firestore.FieldValue.serverTimestamp()
     });
   }
 
@@ -34,9 +41,9 @@ class LedgerService {
    * Perform an atomic transaction and log it to the ledger (Standalone)
    */
   async recordTransaction(userId, amount, type, auctionId = null) {
-    const userRef = db.collection('users').doc(userId);
+    const userRef = this.db.collection('users').doc(userId);
 
-    return db.runTransaction(async (t) => {
+    return this.db.runTransaction(async (t) => {
       const userDoc = await t.get(userRef);
       if (!userDoc.exists) throw new Error("User does not exist in ledger.");
 
@@ -51,29 +58,59 @@ class LedgerService {
     });
   }
 
-  /**
-   * Retrieve transaction history for a user
-   */
   async getHistory(userId) {
-    // Fetch without orderBy to avoid composite index requirement in sandbox
-    const snapshot = await db.collection('transactions')
-      .where('userId', '==', userId)
-      .limit(100)
-      .get();
-    
-    // Sort in-memory (Latest first)
-    return snapshot.docs
-      .map(doc => ({ id: doc.id, ...doc.data() }))
-      .sort((a, b) => {
-        const getTs = (obj) => {
-          if (!obj?.createdAt) return 0;
-          if (obj.createdAt._seconds) return obj.createdAt._seconds;
-          if (obj.createdAt.seconds) return obj.createdAt.seconds;
-          if (obj.createdAt instanceof Date) return obj.createdAt.getTime() / 1000;
-          return 0;
-        };
-        return getTs(b) - getTs(a);
-      });
+    try {
+      console.log(`[Ledger] Fetching history for user: ${userId}`);
+      if (!this.db) throw new Error("Database not connected");
+      
+      const snapshot = await this.db.collection('transactions')
+        .where('userId', '==', userId)
+        .limit(100)
+        .get();
+      
+      console.log(`[Ledger] Found ${snapshot.size} transactions for ${userId}`);
+      
+      const toMs = (ts) => {
+        if (!ts) return 0;
+        if (typeof ts === 'number') return ts;
+        if (ts._seconds) return ts._seconds * 1000;
+        if (ts.seconds) return ts.seconds * 1000;
+        if (ts.toDate) return ts.toDate().getTime();
+        return new Date(ts).getTime() || 0;
+      };
+
+      return snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() }))
+        .sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
+    } catch (err) {
+      console.error(`[Ledger] getHistory Error:`, err.message);
+      throw err;
+    }
+  }
+
+  /**
+   * Fetch all transactions for admin view
+   */
+  async getAllTransactions() {
+    try {
+      const snapshot = await this.db.collection('transactions')
+        .orderBy('createdAt', 'desc')
+        .limit(500) // Safety limit
+        .get();
+      
+      const toMs = (ts) => {
+        if (!ts) return 0;
+        if (ts._seconds) return ts._seconds * 1000;
+        if (ts.seconds) return ts.seconds * 1000;
+        if (ts.toDate) return ts.toDate().getTime();
+        return new Date(ts).getTime() || 0;
+      };
+
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+      console.error(`[Ledger] getAllTransactions Error:`, err.message);
+      throw err;
+    }
   }
 }
 

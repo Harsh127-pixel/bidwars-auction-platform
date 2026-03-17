@@ -1,215 +1,620 @@
-<template>
-  <div style="background: var(--bg-page); min-height: 100vh; padding: 32px 16px;">
-    <div style="max-width: 1280px; margin: 0 auto;">
-
-      <div class="animate-in" style="margin-bottom: 32px;">
-        <h1 class="font-display" style="font-size: 36px; color: var(--text-primary); margin: 0 0 8px; font-weight: 400;">Wallet</h1>
-        <p style="color: var(--text-secondary); font-size: 15px; margin: 0;">Manage your funds and view transaction history</p>
-      </div>
-
-      <!-- Balance Cards -->
-      <div class="animate-in animate-in-delay-1" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 32px;">
-        <div style="background: var(--accent); border-radius: 14px; padding: 28px; color: white;">
-          <div style="font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">Available Balance</div>
-          <div class="bid-amount" style="font-size: 40px; color: white;">₹{{ (authStore.user?.credits || 0).toLocaleString() }}</div>
-          <div style="font-size: 13px; opacity: 0.6; margin-top: 8px;">Ready to bid</div>
-        </div>
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">In Escrow</div>
-          <div class="bid-amount" style="font-size: 40px; color: var(--text-primary);">₹{{ (authStore.user?.heldCredits || 0).toLocaleString() }}</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Reserved for bids</div>
-        </div>
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 28px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 16px;">Total Portfolio</div>
-          <div class="bid-amount" style="font-size: 40px; color: var(--text-primary);">₹{{ ((authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0)).toLocaleString() }}</div>
-          <div style="font-size: 13px; color: var(--text-muted); margin-top: 8px;">Combined value</div>
-        </div>
-      </div>
-
-      <div class="d-flex flex-wrap" style="gap: 24px;">
-        <!-- Add Funds Card -->
-        <div class="animate-in animate-in-delay-2" style="flex: 0 0 380px; min-width: 280px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color);">
-              <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0; font-weight: 400;">Add Funds</h2>
-            </div>
-            <div style="padding: 24px;">
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 20px;">
-                <button
-                  v-for="amount in [5000, 25000, 100000, 500000]"
-                  :key="amount"
-                  @click="topupAmount = amount"
-                  :style="{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: topupAmount === amount ? 'none' : '1px solid var(--border-color)',
-                    background: topupAmount === amount ? 'var(--accent)' : 'var(--bg-elevated)',
-                    color: topupAmount === amount ? 'white' : 'var(--text-primary)',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
-                    fontFamily: 'DM Sans, sans-serif'
-                  }"
-                >₹{{ amount >= 1000 ? (amount/1000)+'K' : amount }}</button>
-              </div>
-
-              <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 8px;">Or enter custom amount</label>
-                <div style="display: flex; align-items: center; gap: 8px; background: var(--bg-elevated); border: 1px solid var(--border-color); border-radius: 8px; padding: 0 14px;">
-                  <span style="color: var(--text-muted); font-weight: 600; font-size: 16px;">₹</span>
-                  <input
-                    v-model.number="topupAmount"
-                    type="number"
-                    placeholder="0"
-                    style="flex: 1; border: none; background: transparent; color: var(--text-primary); font-size: 16px; outline: none; padding: 12px 0; font-family: 'DM Serif Display', serif; font-variant-numeric: tabular-nums;"
-                  />
-                </div>
-              </div>
-
-              <div style="background: var(--bg-elevated); border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid var(--border-color);">
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-                  <span>Amount</span>
-                  <span style="color: var(--text-primary); font-weight: 500;">₹{{ (topupAmount || 0).toLocaleString() }}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
-                  <span>Processing fee</span>
-                  <span style="color: var(--success); font-weight: 600;">Free</span>
-                </div>
-                <div style="border-top: 1px solid var(--border-color); padding-top: 8px; display: flex; justify-content: space-between; font-size: 14px; font-weight: 700; color: var(--text-primary);">
-                  <span>You receive</span>
-                  <span style="color: var(--accent);">₹{{ (topupAmount || 0).toLocaleString() }}</span>
-                </div>
-              </div>
-
-              <button
-                @click="simulateTopup"
-                :disabled="!topupAmount || topupAmount <= 0 || topupLoading"
-                style="width: 100%; background: var(--accent); color: white; border: none; padding: 13px; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.15s; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px;"
-                :style="(!topupAmount || topupAmount <= 0) ? 'opacity: 0.4; cursor: not-allowed;' : ''"
-              >
-                <v-progress-circular v-if="topupLoading" size="16" width="2" indeterminate color="white"></v-progress-circular>
-                {{ topupLoading ? 'Processing...' : 'Add Funds' }}
-              </button>
-
-              <p style="text-align: center; font-size: 12px; color: var(--text-muted); margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <v-icon size="12">mdi-shield-check</v-icon>
-                Simulated payments — safe to test
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Transaction History -->
-        <div class="animate-in animate-in-delay-3" style="flex: 1; min-width: 300px;">
-          <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-            <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
-              <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0; font-weight: 400;">Transaction History</h2>
-              <button @click="fetchHistory" style="background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
-                <v-icon size="14">mdi-refresh</v-icon>
-                Refresh
-              </button>
-            </div>
-
-            <div v-if="loading" style="padding: 48px; text-align: center;">
-              <v-progress-circular indeterminate color="primary" size="32"></v-progress-circular>
-              <p style="color: var(--text-muted); margin-top: 12px; font-size: 14px;">Loading transactions...</p>
-            </div>
-
-            <div v-else-if="history.length === 0" style="padding: 64px 24px; text-align: center;">
-              <div style="width: 56px; height: 56px; background: var(--bg-subtle); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-                <v-icon size="26" style="color: var(--text-muted);">mdi-receipt-text-outline</v-icon>
-              </div>
-              <p style="color: var(--text-muted); font-size: 14px; margin: 0;">No transactions yet. Add funds to get started.</p>
-            </div>
-
-            <div v-else>
-              <div
-                v-for="tx in history"
-                :key="tx.id"
-                style="padding: 16px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 16px; transition: background 0.15s;"
-                @mouseover="$event.currentTarget.style.background = 'var(--bg-subtle)'"
-                @mouseleave="$event.currentTarget.style.background = 'transparent'"
-              >
-                <div :style="{
-                  width: '40px', height: '40px',
-                  background: tx.amount > 0 ? 'var(--success-soft)' : 'var(--accent-soft)',
-                  borderRadius: '10px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0
-                }">
-                  <v-icon size="18" :style="{ color: tx.amount > 0 ? 'var(--success)' : 'var(--accent)' }">
-                    {{ tx.amount > 0 ? 'mdi-plus' : 'mdi-minus' }}
-                  </v-icon>
-                </div>
-
-                <div style="flex: 1; min-width: 0;">
-                  <div style="font-weight: 600; color: var(--text-primary); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ formatType(tx.type) }}</div>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">{{ formatDate(tx.createdAt) }}</div>
-                </div>
-
-                <div style="text-align: right; flex-shrink: 0;">
-                  <div :style="{ fontFamily: 'DM Serif Display, serif', fontSize: '16px', fontVariantNumeric: 'tabular-nums', color: tx.amount > 0 ? 'var(--success)' : 'var(--accent)', fontWeight: 400 }">
-                    {{ tx.amount > 0 ? '+' : '' }}₹{{ Math.abs(tx.amount).toLocaleString() }}
-                  </div>
-                  <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Bal: ₹{{ tx.newBalance.toLocaleString() }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
+<!-- FILE: frontend/src/pages/Wallet.vue -->
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../store/auth'
-import api from '../services/api'
 import { useNotification } from '../services/notification'
+import api from '../services/api'
+import PaymentForm from '../components/PaymentForm.vue'
+import RazorpayModal from '../components/RazorpayModal.vue'
 
-const notification = useNotification()
 const authStore = useAuthStore()
+const notification = useNotification()
 const history = ref([])
 const loading = ref(true)
-const topupAmount = ref(25000)
+const topupAmount = ref(100)
 const topupLoading = ref(false)
+const showTopup = ref(false)
+const showRzp = ref(false)
+const rzpData = ref({ orderId: '', key: '', amount: 0 })
+const historyFilter = ref('all')
+const selectedTx = ref(null)
+const showTxModal = ref(false)
+const showDisputeModal = ref(false)
+const disputeReason = ref('')
+const disputeLoading = ref(false)
 
-const simulateTopup = async () => {
-  if (!topupAmount.value || topupAmount.value <= 0) return
+const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
+const totalWealth = computed(() => (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0))
+const availablePct = computed(() => totalWealth.value ? Math.round((authStore.user?.credits || 0) / totalWealth.value * 100) : 100)
+
+const quickAmounts = [25000, 100000, 500000, 1000000]
+const fmtQuick = (n) => n >= 1000000 ? (n / 1000000) + 'M' : (n / 1000) + 'K'
+const txTypes = { all: 'All', credit: 'Credits', debit: 'Debits' }
+
+const filteredHistory = computed(() => {
+  if (historyFilter.value === 'credit') return history.value.filter(t => t.amount >= 0)
+  if (historyFilter.value === 'debit')  return history.value.filter(t => t.amount < 0)
+  return history.value
+})
+
+const handleTopup = async () => {
+  if (!topupAmount.value || topupAmount.value < 100) return notification.add('Min ₹100', 'error')
   topupLoading.value = true
   try {
-    await api.post('/api/wallet/topup', { amount: topupAmount.value })
-    notification.add(`₹${topupAmount.value.toLocaleString()} added to your wallet!`, 'success')
-    topupAmount.value = 25000
-    await fetchHistory()
-    await authStore.init()
+    const res = await api.post('/api/payments/create-order', { amount: topupAmount.value * 100 })
+    rzpData.value = { 
+      orderId: res.data.orderId || res.data.id, 
+      key: res.data.key, 
+      amount: res.data.amount 
+    }
+    showRzp.value = true
   } catch {
-    notification.add('Payment failed. Please try again.', 'error')
+    notification.add('Failed to initiate topup.', 'error')
   } finally {
-    topupLoading.value = false }
+    topupLoading.value = false
+  }
+}
+
+const simulateTopup = handleTopup
+
+const handlePaymentSuccess = async (data) => {
+  topupLoading.value = true
+  try {
+    // 2. Verify payment on server
+    await api.post('/api/payments/verify', data)
+    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added to your wallet!`, 'success')
+    authStore.init() // Refresh user data for balance
+    await fetchHistory()
+  } catch (e) {
+    notification.add('Payment verification failed.', 'error')
+  } finally {
+    topupLoading.value = false
+  }
+}
+
+const handlePaymentError = (err) => {
+  notification.add(err.message || 'Payment failed', 'error')
+}
+
+const handlePaymentClose = () => {
+  // notification.add('Payment cancelled', 'info')
 }
 
 const fetchHistory = async () => {
   loading.value = true
   try {
     const res = await api.get('/api/wallet/history')
-    history.value = res.data
-  } catch { notification.add('Failed to load transactions.', 'error') }
+    history.value = Array.isArray(res.data) ? res.data : []
+    console.log('[Wallet] History loaded:', history.value.length)
+  } catch (err) { 
+    console.error('[Wallet] Load Error:', err)
+    notification.add('Could not load history: ' + (err.message || 'Unknown error'), 'error') 
+  }
   finally { loading.value = false }
 }
 
-const formatDate = (ts) => {
+const fmtDate = (ts) => {
   if (!ts) return ''
-  const d = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts)
-  return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+  try {
+    const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
+    if (isNaN(d.getTime())) return ''
+    const diff = Date.now() - d
+    if (diff < 60000)    return 'Just now'
+    if (diff < 3600000)  return Math.floor(diff / 60000) + 'm ago'
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago'
+    return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+  } catch { return '' }
 }
 
-const formatType = (type) => {
-  const map = { topup: 'Funds Added', bid_hold: 'Bid Placed (Held)', bid_release: 'Bid Released', win: 'Won Auction' }
-  return map[type] || (type || 'Transaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+const fmtType = (type) => ({
+  WALLET_TOPUP: 'Deposit', BID_HOLD: 'Bid Reserved', BID_REFUND: 'Bid Refunded',
+  BUY_IT_NOW: 'Buy It Now', BID_WIN_FINAL: 'Auction Won', ESCROW_PAYOUT: 'Escrow Released',
+  DISPUTE_REFUND: 'Dispute Refund', ADMIN_TOPUP: 'Admin Adjustment',
+}[type] || type?.replace(/_/g, ' ') || 'Transaction')
+
+const txIcon = (type) => ({ WALLET_TOPUP:'↓', BID_HOLD:'⊠', BID_REFUND:'↩',
+  BUY_IT_NOW:'⚡', BID_WIN_FINAL:'★', ESCROW_PAYOUT:'✓', DISPUTE_REFUND:'↩', ADMIN_TOPUP:'⊕' }[type] || '•')
+
+const openTxDetails = (tx) => {
+  selectedTx.value = tx
+  showTxModal.value = true
+}
+
+const raiseDispute = () => {
+  disputeReason.value = ''
+  showDisputeModal.value = true
+}
+
+const submitDispute = async () => {
+  if (!disputeReason.value.trim()) return
+  disputeLoading.value = true
+  try {
+    await api.post('/api/disputes', { 
+      transactionId: selectedTx.value.id, 
+      auctionId: selectedTx.value.auctionId, 
+      reason: disputeReason.value 
+    })
+    notification.add('Dispute raised successfully. Our team will review it.', 'success')
+    showDisputeModal.value = false
+    showTxModal.value = false
+  } catch {
+    notification.add('Failed to raise dispute.', 'error')
+  } finally {
+    disputeLoading.value = false
+  }
+}
+
+const canDispute = (tx) => {
+  // Logic: if status is pending/failed OR if it's a debit the user wants to contest
+  if (tx.status === 'pending' || tx.status === 'failed') return true
+  if (tx.amount < 0 && tx.type !== 'BID_HOLD') return true // Contesting debits (except active bid holds which are normal)
+  return false
+}
+
+const fmtFullDate = (ts) => {
+  if (!ts) return ''
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : (ts.toDate ? ts.toDate() : new Date(ts))
+  return d.toLocaleString('en-IN', { 
+    day: '2-digit', month: 'long', year: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit'
+  })
+}
+
+const copyUid = () => {
+  if (!authStore.user?.uid) return
+  navigator.clipboard.writeText(authStore.user.uid)
+  notification.add('Wallet ID copied to clipboard', 'info')
 }
 
 onMounted(fetchHistory)
 </script>
+
+<template>
+  <div class="wallet-page">
+
+    <!-- HERO -->
+    <div class="balance-hero balance-hero--centered">
+      <div class="balance-hero__glow"></div>
+      <div class="page-wrap hero-wrap">
+          <div class="balance-card fade-up">
+            <div class="card-glow"></div>
+            <div class="bc-label">Available Balance</div>
+            <div class="bc-val bc-val--huge">{{ fmt(authStore.user?.credits) }}</div>
+            <div class="bc-sub">Escrow (Held): {{ fmt(authStore.user?.heldCredits) }}</div>
+            
+            <div v-if="authStore.user?.uid" class="wallet-id-tag" title="Click to copy Wallet ID" @click="copyUid">
+              ID: {{ authStore.user.uid.slice(0, 8) }}...{{ authStore.user.uid.slice(-4) }}
+              <v-icon size="12" class="ml-1">mdi-content-copy</v-icon>
+            </div>
+
+            <button class="btn-add-funds" @click="showTopup = true">
+              Add Funds +
+            </button>
+          </div>
+      </div>
+    </div>
+
+    <div class="page-wrap wallet-body">
+
+      <!-- STAT TILES -->
+      <div class="stat-row fade-up">
+        <div class="stat-tile fade-up" v-for="(tile, i) in [
+          { icon:'↓', cls:'--orange', val: history.filter(t=>t.amount>0).length,  label:'Deposits'  },
+          { icon:'↑', cls:'--red',    val: history.filter(t=>t.amount<0).length,  label:'Debits'    },
+          { icon:'★', cls:'--green',  val: history.filter(t=>t.type==='BID_WIN_FINAL').length, label:'Wins' },
+          { icon:'Σ', cls:'--muted',  val: history.length,                         label:'All Txns'  },
+        ]" :key="i" :style="`animation-delay:${i*0.06}s`">
+          <div class="tile-icon" :class="`tile-icon${tile.cls}`">{{ tile.icon }}</div>
+          <div class="tile-val">{{ tile.val }}</div>
+          <div class="tile-label">{{ tile.label }}</div>
+        </div>
+      </div>
+
+
+      <!-- HISTORY -->
+      <div class="history-card fade-up fade-up-2">
+        <div class="history-head">
+          <h2 class="history-title">Transactions</h2>
+          <div class="history-filters">
+            <button v-for="(label, key) in txTypes" :key="key"
+              class="fpill" :class="{'fpill--on': historyFilter === key}"
+              @click="historyFilter = key">{{ label }}</button>
+          </div>
+          <button class="refresh-btn" @click="fetchHistory" :disabled="loading">
+            <span :class="{'spin': loading}">↻</span>
+          </button>
+        </div>
+
+        <div v-if="loading" class="tx-list">
+          <div v-for="n in 5" :key="n" class="tx-skel"></div>
+        </div>
+
+        <TransitionGroup v-else-if="filteredHistory.length" name="tx" tag="div" class="tx-list">
+          <div v-for="tx in filteredHistory" :key="tx.id" class="tx-row" @click="openTxDetails(tx)">
+            <div class="tx-ico" :class="tx.amount >= 0 ? 'tx-ico--cr' : 'tx-ico--db'">{{ txIcon(tx.type) }}</div>
+            <div class="tx-info">
+              <div class="tx-name">{{ fmtType(tx.type) }}</div>
+              <div class="tx-sub">
+                <span v-if="tx.auctionId" class="tx-id">{{ tx.auctionId.slice(0,8).toUpperCase() }}</span>
+                <span class="tx-date">{{ fmtDate(tx.createdAt) }}</span>
+              </div>
+            </div>
+            <div class="tx-right">
+              <div class="tx-amt" :class="tx.amount >= 0 ? 'tx-amt--cr' : 'tx-amt--db'">
+                {{ tx.amount >= 0 ? '+' : '' }}{{ fmt(tx.amount) }}
+              </div>
+              <div class="tx-bal">{{ fmt(tx.newBalance) }}</div>
+            </div>
+          </div>
+        </TransitionGroup>
+
+        <div v-else class="tx-empty">
+          <div class="tx-empty__icon">◈</div>
+          <div class="tx-empty__title">No transactions yet</div>
+          <div class="tx-empty__sub">Add funds to get started</div>
+        </div>
+      </div>
+
+    </div>
+
+    <RazorpayModal
+      v-model="showRzp"
+      :amount="rzpData.amount"
+      :order-id="rzpData.orderId"
+      :razorpay-key="rzpData.key"
+      @success="handlePaymentSuccess"
+      @error="handlePaymentError"
+      @close="handlePaymentClose"
+    />
+
+    <!-- ADD FUNDS MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showTopup" class="modal-overlay" @click.self="showTopup = false">
+          <div class="modal deposit-modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Add Funds</h3>
+              <button class="modal-close" @click="showTopup = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="quick-grid">
+                <button v-for="amt in quickAmounts" :key="amt"
+                  class="quick-chip" :class="{'quick-chip--on': topupAmount === amt}"
+                  @click="topupAmount = amt">
+                  ₹{{ fmtQuick(amt) }}
+                </button>
+              </div>
+
+              <div class="field-wrap" style="margin-top:20px">
+                <label class="field-label">CUSTOM AMOUNT</label>
+                <div class="amt-wrap">
+                  <span class="amt-prefix">₹</span>
+                  <input v-model.number="topupAmount" type="number" min="100"
+                    class="field amt-field" placeholder="0" />
+                </div>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn btn-ghost" @click="showTopup = false">Cancel</button>
+              <button class="btn btn-primary btn-deposit-full" 
+                :disabled="topupLoading || !topupAmount || topupAmount < 100" 
+                @click="handleTopup">
+                <span v-if="topupLoading" class="dep-spin"></span>
+                Proceed to Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- TRANSACTION DETAILS MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showTxModal" class="modal-overlay" @click.self="showTxModal = false">
+          <div class="modal tx-modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Transaction Receipt</h3>
+              <button class="modal-close" @click="showTxModal = false">✕</button>
+            </div>
+            <div v-if="selectedTx" class="modal-body">
+              <div class="receipt-header">
+                <div class="receipt-icon" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">{{ txIcon(selectedTx.type) }}</div>
+                <div class="receipt-type">{{ fmtType(selectedTx.type) }}</div>
+                <div class="receipt-amt" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">
+                   {{ selectedTx.amount >= 0 ? '+' : '' }}{{ fmt(selectedTx.amount) }}
+                </div>
+              </div>
+              
+              <div class="receipt-details">
+                <div class="rd-row"><span class="rd-key">Reference ID</span><span class="rd-val t-mono">{{ selectedTx.id }}</span></div>
+                <div v-if="selectedTx.auctionId" class="rd-row"><span class="rd-key">Asset ID</span><span class="rd-val t-mono">{{ selectedTx.auctionId }}</span></div>
+                <div class="rd-row"><span class="rd-key">User ID</span><span class="rd-val t-mono" style="font-size:10px">{{ selectedTx.userId }}</span></div>
+                <div class="rd-row"><span class="rd-key">Status</span><span class="rd-val"><span class="badge" :class="selectedTx.status === 'failed' ? 'badge-red' : 'badge-live'">{{ (selectedTx.status || 'SUCCESS').toUpperCase() }}</span></span></div>
+                <div class="rd-row"><span class="rd-key">Date & Time</span><span class="rd-val">{{ fmtFullDate(selectedTx.createdAt) }}</span></div>
+                <v-divider class="my-2"></v-divider>
+                <div class="rd-row"><span class="rd-key">Previous Balance</span><span class="rd-val">{{ fmt(selectedTx.prevBalance) }}</span></div>
+                <div class="rd-row"><span class="rd-key">Change Amount</span><span class="rd-val" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">{{ selectedTx.amount >= 0 ? '+' : '' }}{{ fmt(selectedTx.amount) }}</span></div>
+                <div class="rd-row" style="border:none"><span class="rd-key">New Balance</span><span class="rd-val" style="font-weight:700; font-size:16px">{{ fmt(selectedTx.newBalance) }}</span></div>
+              </div>
+
+              <div v-if="canDispute(selectedTx)" class="receipt-footer">
+                <button class="btn-dispute-full" @click="raiseDispute">Raise a Dispute</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- DISPUTE MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showDisputeModal" class="modal-overlay" @click.self="showDisputeModal = false">
+          <div class="modal fade-up">
+            <div class="modal-head">
+              <h3 class="modal-title">Raise a Dispute</h3>
+              <button class="modal-close" @click="showDisputeModal = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="field-wrap">
+                <label class="field-label">Why are you disputing this transaction?</label>
+                <textarea v-model="disputeReason" class="field" rows="4" placeholder="Please provide details..."></textarea>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn-cancel" @click="showDisputeModal = false">Cancel</button>
+              <button class="btn-submit-dispute" :disabled="!disputeReason.trim() || disputeLoading" @click="submitDispute">
+                {{ disputeLoading ? 'Submitting...' : 'Submit Dispute' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+  </div>
+</template>
+
+<style scoped>
+.wallet-page { min-height: 100vh; background: var(--bg); }
+
+/* HERO */
+.balance-hero { position: relative; padding: 64px 0 82px; overflow: hidden; background: var(--bg-raised); border-bottom: 1px solid var(--border); }
+.balance-hero--centered .hero-wrap { justify-content: center; }
+.hero-wrap { display: flex; align-items: stretch; gap: 24px; flex-wrap: wrap; }
+.balance-hero__glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 120% at 50% 60%, rgba(212,175,55,0.08) 0%, transparent 65%),
+              radial-gradient(ellipse 50% 70% at 95% 10%, rgba(212,175,55,0.03) 0%, transparent 55%);
+}
+
+.balance-card {
+  position: relative; background: var(--bg-card);
+  border: 1px solid var(--gold-border);
+  border-radius: 24px; padding: 40px; color: var(--text); overflow: hidden;
+  max-width: 480px; width: 100%;
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.3);
+}
+.bc-label { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em; color: var(--text-3); margin-bottom: 16px; }
+.bc-val { font-family: var(--font-display); font-size: 52px; color: var(--text); margin-bottom: 8px; line-height: 1; }
+.bc-val--huge { font-size: 72px; font-weight: 800; color: var(--gold); text-shadow: 0 4px 20px rgba(212,175,55,0.2); }
+.bc-sub { font-size: 16px; color: var(--text-3); font-weight: 500; margin-bottom: 24px; }
+
+.btn-add-funds {
+  background: var(--gold); color: #000; border: none; border-radius: 14px;
+  padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 8px 20px rgba(212,175,55,0.3);
+}
+.btn-add-funds:hover { transform: translateY(-2px); scale: 1.05; box-shadow: 0 12px 24px rgba(212,175,55,0.4); }
+.btn-add-funds:active { transform: translateY(0); scale: 0.98; }
+
+.wallet-id-tag {
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 8px; padding: 4px 10px; font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-3); cursor: pointer; margin-bottom: 24px; transition: all 0.2s;
+  display: flex; align-items: center; gap: 4px;
+}
+.wallet-id-tag:hover { background: var(--bg-hover); color: var(--text-2); border-color: var(--border-strong); }
+
+/* BODY */
+.wallet-body { padding-bottom: 64px; }
+
+/* STAT TILES */
+.stat-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px; }
+.stat-tile {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 18px 20px; display: flex; flex-direction: column; gap: 5px;
+  transition: border-color 0.2s, transform 0.2s;
+}
+.stat-tile:hover { border-color: var(--border-md); transform: translateY(-2px); }
+.tile-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; margin-bottom: 4px; }
+.tile-icon--orange { background: var(--orange-dim); color: var(--orange); }
+.tile-icon--red    { background: var(--red-dim);    color: var(--red); }
+.tile-icon--green  { background: var(--green-dim);  color: var(--green); }
+.tile-icon--muted  { background: var(--bg-raised);  color: var(--text-2); }
+.tile-val   { font-family: var(--font-display); font-size: 26px; color: var(--text); line-height: 1; }
+.tile-label { font-size: 12px; color: var(--text-3); }
+
+/* HISTORY CARD */
+.history-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.history-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.history-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; color: var(--text); flex: 1; min-width: 80px; }
+.history-filters { display: flex; gap: 5px; }
+.fpill {
+  padding: 5px 13px; border-radius: 20px; border: 1px solid var(--border-md);
+  background: transparent; color: var(--text-2); font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.fpill:hover { background: var(--bg-hover); color: var(--text); }
+.fpill--on { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+.refresh-btn {
+  width: 32px; height: 32px; background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 8px; cursor: pointer; color: var(--text-2); font-size: 15px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0;
+}
+.refresh-btn:hover { color: var(--text); }
+.spin { display: inline-block; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.tx-list { padding: 6px 0; }
+.tx-skel {
+  height: 62px; margin: 4px 16px; border-radius: 10px;
+  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-hover) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s ease infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+.tx-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 24px; border-bottom: 1px solid var(--border); transition: background 0.15s;
+}
+.tx-row:last-child { border-bottom: none; }
+.tx-row:hover { background: var(--bg-raised); }
+.tx-ico {
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.tx-ico--cr { background: var(--green-dim); color: var(--green); }
+.tx-ico--db { background: var(--red-dim);   color: var(--red); }
+.tx-info { flex: 1; min-width: 0; }
+.tx-name { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tx-sub  { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.tx-id   { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); }
+.tx-date { font-size: 12px; color: var(--text-3); }
+.tx-right { text-align: right; flex-shrink: 0; }
+.tx-amt  { font-size: 15px; font-weight: 700; }
+.tx-amt--cr { color: var(--green); }
+.tx-amt--db { color: var(--red); }
+.tx-bal  { font-size: 12px; color: var(--text-3); margin-top: 2px; }
+.tx-enter-active { transition: all 0.25s ease; }
+.tx-enter-from   { opacity: 0; transform: translateX(-10px); }
+
+.tx-empty { padding: 52px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.tx-empty__icon  { font-size: 32px; color: var(--text-3); opacity: 0.35; }
+.tx-empty__title { font-family: var(--font-display); font-size: 17px; color: var(--text-2); }
+.tx-empty__sub   { font-size: 13px; color: var(--text-3); }
+
+/* DRAWER */
+.drawer-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 400;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.drawer {
+  width: 100%; max-width: 520px; background: var(--bg-card);
+  border: 1px solid var(--border-md); border-radius: 24px 24px 0 0;
+  max-height: 92vh; overflow-y: auto;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 16px);
+}
+.drawer-handle { width: 40px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 12px auto 0; }
+.drawer-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 16px;
+}
+.drawer-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--text); }
+.drawer-close {
+  width: 32px; height: 32px; background: var(--bg-raised); border: none; border-radius: 50%;
+  color: var(--text-2); font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
+}
+.drawer-close:hover { background: var(--bg-hover); color: var(--text); }
+.drawer-body { padding: 0 24px 24px; }
+
+.balance-preview {
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 12px; padding: 16px 20px; margin-bottom: 20px;
+}
+.preview-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 4px; }
+.preview-val   { font-family: var(--font-display); font-size: 28px; color: var(--text); }
+.preview-after { font-size: 13px; color: var(--orange); margin-top: 6px; }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; transform: translateY(-4px); }
+
+.quick-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.quick-chip {
+  padding: 10px 4px; background: var(--bg-raised); border: 1px solid var(--border-md); border-radius: 10px;
+  color: var(--text-2); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; text-align: center;
+}
+.quick-chip:hover { background: var(--bg-hover); color: var(--text); }
+.quick-chip--on { background: var(--orange-dim); border-color: rgba(251,146,60,0.3); color: var(--orange); }
+
+.amt-wrap { position: relative; }
+.amt-prefix { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--text-2); pointer-events: none; }
+.amt-field { padding-left: 30px !important; font-size: 18px !important; font-weight: 600; }
+
+.btn-deposit {
+  width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 16px; background: #5D2E1F; color: var(--gold); border: none; border-radius: 12px;
+  font-family: var(--font-body); font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 20px;
+  transition: all 0.2s; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.btn-deposit:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+.btn-deposit:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.dep-spin { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.6s linear infinite; }
+.drawer-note { margin-top: 14px; font-size: 12px; color: var(--text-3); text-align: center; line-height: 1.6; }
+
+/* Drawer animation */
+.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s ease; }
+.drawer-enter-active .drawer, .drawer-leave-active .drawer { transition: transform 0.3s cubic-bezier(0.16,1,0.3,1); }
+.drawer-enter-from { opacity: 0; }
+.drawer-enter-from .drawer { transform: translateY(100%); }
+.drawer-leave-to { opacity: 0; }
+.drawer-leave-to .drawer { transform: translateY(100%); }
+
+.drawer-leave-to .drawer { transform: translateY(100%); }
+
+/* RECEIPT MODAL */
+.tx-modal { max-width: 400px; border-radius: 18px; overflow: hidden; }
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal { background: var(--bg-card); border: 1px solid var(--border-md); width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.modal-close { background: none; border: none; font-size: 16px; color: var(--text-3); cursor: pointer; }
+.receipt-header { padding: 32px 20px; text-align: center; background: var(--bg-raised); }
+.receipt-icon {
+  width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 24px;
+}
+.receipt-icon.cr { background: var(--green-dim); color: var(--green); }
+.receipt-icon.db { background: var(--red-dim); color: var(--red); }
+.receipt-type { font-size: 13px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.receipt-amt { font-family: var(--font-display); font-size: 32px; font-weight: 700; }
+.receipt-amt.cr { color: var(--green); }
+.receipt-amt.db { color: var(--red); }
+
+.receipt-details { padding: 20px; }
+.rd-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.rd-key { font-size: 12px; color: var(--text-3); }
+.rd-val { font-size: 13px; color: var(--text); font-weight: 500; }
+
+.receipt-footer { padding: 0 20px 24px; }
+.btn-dispute-full {
+  width: 100%; padding: 12px; background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 10px; color: var(--red); font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-dispute-full:hover { background: rgba(248,113,113,0.2); }
+
+.modal-foot { display: flex; gap: 10px; justify-content: flex-end; padding: 0 24px 24px; }
+.btn-cancel { padding: 10px 20px; background: var(--bg-raised); border: 1px solid var(--border-md); border-radius: 10px; color: var(--text-2); cursor: pointer; }
+.btn-submit-dispute { padding: 10px 20px; background: var(--orange); color: #fff; border: none; border-radius: 10px; font-weight: 700; cursor: pointer; }
+
+/* RESPONSIVE */
+@media (max-width: 640px) {
+  .stat-row { grid-template-columns: repeat(2,1fr); }
+  .balance-hero { padding: 40px 0; }
+  .bc-val--huge { font-size: 52px; }
+  .balance-card { padding: 32px 20px; }
+  .quick-grid { grid-template-columns: repeat(2,1fr); }
+  .tx-row { padding: 12px 16px; gap: 10px; }
+  .history-head { padding: 14px 16px; }
+}
+</style>

@@ -1,195 +1,514 @@
+<!-- FILE: frontend/src/pages/Dashboard.vue -->
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../store/auth'
+import { useNotification } from '../services/notification'
+import api from '../services/api'
+
+
+const authStore    = useAuthStore()
+const notification = useNotification()
+const auctions     = ref([])
+const orders       = ref([])
+const loading      = ref(true)
+const processing   = ref(false)
+const showAddFunds = ref(false)
+const topupAmount  = ref(100)
+const disputeId    = ref(null)
+const disputeReason = ref('')
+const showDisputeModal = ref(false)
+
+const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
+
+const activeBids = computed(() =>
+  auctions.value.filter(a => a.highestBidder === authStore.user?.uid && a.status === 'active')
+)
+const wonItems = computed(() =>
+  auctions.value.filter(a => a.highestBidder === authStore.user?.uid && a.status === 'closed')
+)
+const totalBidValue = computed(() =>
+  activeBids.value.reduce((sum, a) => sum + (a.highestBid || 0), 0)
+)
+
+const openDispute = (id) => { disputeId.value = id; disputeReason.value = ''; showDisputeModal.value = true }
+const submitDispute = async () => {
+  if (!disputeReason.value.trim()) return
+  try {
+    await api.post('/api/disputes', { auctionId: disputeId.value, reason: disputeReason.value })
+    notification.add('Dispute filed. Support will review shortly.', 'success')
+    showDisputeModal.value = false
+    loadData()
+  } catch { notification.add('Failed to file dispute.', 'error') }
+}
+
+const fetchOrders = async () => {
+  try {
+    const res = await api.get('/api/users/orders')
+    orders.value = res.data
+  } catch {}
+}
+
+const markDelivered = async (orderId) => {
+  if (!confirm('Have you received this item?')) return
+  processing.value = true
+  try {
+    await api.put(`/api/users/orders/${orderId}/delivered`)
+    notification.add('Item marked as delivered. Enjoy!', 'success')
+    fetchOrders()
+  } catch { notification.add('Action failed', 'error') }
+  finally { processing.value = false }
+}
+const handleAddFunds = async () => {
+  if (!topupAmount.value || topupAmount.value < 100) return notification.add('Min amount ₹100', 'error')
+  processing.value = true
+  try {
+    // We reuse the existing payment logic. Since Wallet.vue has the full UI, 
+    // here we just simulate a direct server call or redirect.
+    // For now, let's keep it simple as requested - a direct credit simulation for the dashboard "quick add"
+    await api.post('/api/payments/create-order', { amount: topupAmount.value })
+    notification.add(`Order for ₹${topupAmount.value} initiated. Redirecting to Wallet...`, 'info')
+    window.location.href = '/wallet'
+  } catch { notification.add('Action failed', 'error') }
+  finally { processing.value = false }
+}
+
+const loadData = async () => {
+  loading.value = true
+  try {
+    const res = await api.get('/api/auctions')
+    auctions.value = res.data
+    await fetchOrders()
+  } catch {}
+  finally { loading.value = false }
+}
+
+onMounted(loadData)
+</script>
+
 <template>
-  <div style="background: var(--bg-page); min-height: 100vh; padding: 32px 16px;">
-    <div style="max-width: 1280px; margin: 0 auto;">
+  <div class="dash-page">
+    <div class="page-wrap">
 
-      <!-- Header -->
-      <div class="animate-in" style="margin-bottom: 32px;">
-        <h1 class="font-display" style="font-size: 36px; color: var(--text-primary); margin: 0 0 8px; font-weight: 400;">
-          My Dashboard
-        </h1>
-        <p style="color: var(--text-secondary); font-size: 15px; margin: 0;">
-          Hello, <strong>{{ authStore.user?.username || 'Bidder' }}</strong> — here's your bidding activity
-        </p>
-      </div>
-
-      <!-- Stats Grid -->
-      <div class="animate-in animate-in-delay-1" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
-        <!-- Wallet Balance -->
-        <div style="background: var(--accent); border-radius: 14px; padding: 24px; color: white; grid-column: span 1;">
-          <div style="font-size: 12px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-            <v-icon size="14">mdi-wallet-outline</v-icon>
-            Wallet Balance
-          </div>
-          <div class="bid-amount" style="font-size: 34px; color: white; margin-bottom: 4px;">₹{{ (authStore.user?.credits || 0).toLocaleString() }}</div>
-          <div style="font-size: 12px; opacity: 0.6;">Available to bid</div>
-          <router-link to="/wallet" style="display: inline-flex; align-items: center; gap: 4px; margin-top: 16px; background: rgba(255,255,255,0.15); color: white; padding: 7px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: background 0.15s;">
-            Add funds →
-          </router-link>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-            <v-icon size="14" style="color: var(--text-muted);">mdi-lock-clock</v-icon>
-            In Escrow
-          </div>
-          <div class="bid-amount" style="font-size: 34px; color: var(--text-primary); margin-bottom: 4px;">₹{{ (authStore.user?.heldCredits || 0).toLocaleString() }}</div>
-          <div style="font-size: 12px; color: var(--text-muted);">Reserved for active bids</div>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-            <v-icon size="14" style="color: var(--text-muted);">mdi-gavel</v-icon>
-            Active Bids
-          </div>
-          <div class="bid-amount" style="font-size: 34px; color: var(--text-primary); margin-bottom: 4px;">{{ activeBidsCount }}</div>
-          <div style="font-size: 12px; color: var(--text-muted);">Currently leading</div>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; padding: 24px;">
-          <div style="font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px; display: flex; align-items: center; gap: 6px;">
-            <v-icon size="14" style="color: var(--success);">mdi-trophy-outline</v-icon>
-            Items Won
-          </div>
-          <div class="bid-amount" style="font-size: 34px; color: var(--text-primary); margin-bottom: 4px;">{{ itemsWonCount }}</div>
-          <div style="font-size: 12px; color: var(--text-muted);">All time</div>
-        </div>
-      </div>
-
-      <!-- Verification Banner (if not verified) -->
-      <div v-if="!authStore.user?.isVerified" class="animate-in animate-in-delay-2" style="background: var(--warning-soft); border: 1px solid var(--warning); border-radius: 12px; padding: 20px 24px; margin-bottom: 32px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
-        <v-icon size="24" style="color: var(--warning);">mdi-shield-alert-outline</v-icon>
-        <div style="flex: 1; min-width: 200px;">
-          <div style="font-weight: 700; color: var(--text-primary); font-size: 15px; margin-bottom: 4px;">Verify your account to unlock premium auctions</div>
-          <div style="font-size: 13px; color: var(--text-secondary);">Add your PAN/GST to bid on government repossessions and high-value lots.</div>
-        </div>
-        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-          <input
-            v-model="verifyCode"
-            placeholder="Enter PAN / GST number"
-            style="padding: 9px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; outline: none; font-family: 'DM Sans', sans-serif; width: 220px;"
-          />
-          <button @click="verifyAccount" :disabled="verifying" style="background: var(--warning); color: white; border: none; padding: 9px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 6px;">
-            <v-progress-circular v-if="verifying" size="14" width="2" indeterminate color="white"></v-progress-circular>
-            {{ verifying ? 'Verifying...' : 'Verify Now' }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="authStore.user?.isVerified" class="animate-in animate-in-delay-2" style="background: var(--success-soft); border: 1px solid var(--success); border-radius: 12px; padding: 16px 20px; margin-bottom: 32px; display: flex; align-items: center; gap: 12px;">
-        <v-icon size="20" style="color: var(--success);">mdi-check-decagram</v-icon>
-        <span style="font-weight: 600; color: var(--text-primary); font-size: 14px;">Verified account — you have access to all auction categories</span>
-      </div>
-
-      <!-- Active Bids Table -->
-      <div class="animate-in animate-in-delay-3" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden;">
-        <div style="padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+      <!-- HERO GREETING -->
+      <div class="dash-hero fade-up">
+        <div class="dash-hero__glow"></div>
+        <div class="dash-hero__inner">
           <div>
-            <h2 style="font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--text-primary); margin: 0 0 4px; font-weight: 400;">My Active Bids</h2>
-            <p style="font-size: 13px; color: var(--text-muted); margin: 0;">Auctions where you're currently the highest bidder</p>
+            <div class="dash-eyebrow">My Dashboard</div>
+            <h1 class="dash-greeting" :class="{ 'dash-greeting--pro': authStore.user?.subscriptionStatus === 'active' }">
+              Hello, {{ authStore.user?.username || 'Bidder' }} 👋
+              <span v-if="authStore.user?.subscriptionStatus === 'active'" class="pro-badge">PRO</span>
+            </h1>
+            <div style="display:flex;align-items:center;gap:12px">
+               <p class="dash-sub" style="margin:0">Track your live bids, wins, and account balance.</p>
+               <v-btn variant="text" icon size="small" @click="loadData" :disabled="loading" style="color:var(--text-3)">
+                 <v-icon :class="{'btn-spin': loading}">mdi-refresh</v-icon>
+               </v-btn>
+            </div>
           </div>
-          <router-link to="/auctions" style="background: var(--bg-elevated); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none; transition: all 0.15s;">
-            Browse More →
-          </router-link>
+          <router-link to="/auctions" class="btn-browse">Browse Auctions →</router-link>
         </div>
-
-        <div v-if="biddingHistory.length === 0" style="padding: 64px 24px; text-align: center;">
-          <div style="width: 60px; height: 60px; background: var(--bg-subtle); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;">
-            <v-icon size="28" style="color: var(--text-muted);">mdi-gavel</v-icon>
-          </div>
-          <h3 style="font-size: 17px; color: var(--text-primary); margin: 0 0 8px; font-weight: 600;">No active bids yet</h3>
-          <p style="font-size: 14px; color: var(--text-muted); margin: 0 0 20px;">Start bidding on items you love.</p>
-          <router-link to="/auctions" style="display: inline-block; background: var(--accent); color: white; padding: 10px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; text-decoration: none;">
-            Browse Auctions
-          </router-link>
-        </div>
-
-        <table v-else style="width: 100%; border-collapse: collapse;" class="clean-table">
-          <thead>
-            <tr>
-              <th style="text-align: left;">Item</th>
-              <th style="text-align: right;">Your Bid</th>
-              <th style="text-align: center;">Status</th>
-              <th style="text-align: right;">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in biddingHistory" :key="item.id">
-              <td>
-                <div style="display: flex; align-items: center; gap: 14px;">
-                  <div style="width: 52px; height: 40px; border-radius: 8px; overflow: hidden; background: var(--bg-subtle); flex-shrink: 0;">
-                    <v-img :src="item.image" cover style="width: 100%; height: 100%;"></v-img>
-                  </div>
-                  <div>
-                    <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">{{ item.item }}</div>
-                    <div style="font-size: 12px; color: var(--text-muted);">ID: {{ item.id.slice(0,8).toUpperCase() }}</div>
-                  </div>
-                </div>
-              </td>
-              <td style="text-align: right;">
-                <span class="bid-amount" style="font-size: 16px; color: var(--text-primary);">₹{{ item.amount }}</span>
-              </td>
-              <td style="text-align: center;">
-                <span style="background: var(--success-soft); color: var(--success); padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;">Leading</span>
-              </td>
-              <td style="text-align: right;">
-                <router-link :to="'/auction/' + item.id" style="color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none;">View →</router-link>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </div>
+
+      <!-- STAT TILES -->
+      <div class="stat-grid fade-up fade-up-1">
+        <div class="stat-tile stat-tile--featured">
+          <div class="stat-tile__label">Available Balance</div>
+          <div class="stat-tile__val stat-tile__val--large">{{ fmt(authStore.user?.credits) }}</div>
+          <div class="stat-tile__sub">{{ fmt(authStore.user?.heldCredits) }} held in escrow</div>
+          <router-link to="/wallet" class="stat-tile__cta">
+            Add Funds +
+          </router-link>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile__icon stat-tile__icon--green">⚡</div>
+          <div class="stat-tile__val">{{ activeBids.length }}</div>
+          <div class="stat-tile__label">Active Bids</div>
+          <div class="stat-tile__sub">{{ fmt(totalBidValue) }} committed</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile__icon stat-tile__icon--orange">★</div>
+          <div class="stat-tile__val">{{ authStore.user?.totalWins || wonItems.length }}</div>
+          <div class="stat-tile__label">Items Won</div>
+          <div class="stat-tile__sub">All time</div>
+        </div>
+        <div class="stat-tile">
+          <div class="stat-tile__icon stat-tile__icon--blue">◈</div>
+          <div class="stat-tile__val">{{ authStore.user?.reputation || 100 }}</div>
+          <div class="stat-tile__label">Reputation</div>
+          <div class="stat-tile__sub">{{ authStore.user?.membershipTier || 'Bronze' }} tier</div>
+        </div>
+      </div>
+
+
+
+      <!-- KYC BANNER -->
+      <Transition name="banner">
+        <div v-if="!authStore.user?.isVerified" class="kyc-banner fade-up fade-up-2">
+          <div class="kyc-banner__icon">🛡</div>
+          <div class="kyc-banner__body">
+            <div class="kyc-banner__title">Complete Identity Verification</div>
+            <div class="kyc-banner__sub">Unlock premium and government-repossession lots.</div>
+          </div>
+          <router-link to="/profile" class="btn-verify">Verify Now →</router-link>
+        </div>
+      </Transition>
+
+      <!-- ACTIVE BIDS -->
+      <div class="section fade-up fade-up-3">
+        <div class="section-head">
+          <h2 class="section-title">Active Bids</h2>
+          <router-link to="/auctions" class="section-link">Browse More →</router-link>
+        </div>
+
+        <div v-if="loading" class="bid-skel-list">
+          <div v-for="n in 3" :key="n" class="bid-skel"></div>
+        </div>
+
+        <div v-else-if="activeBids.length" class="bid-list">
+          <TransitionGroup name="row">
+            <div v-for="a in activeBids" :key="a.id" class="bid-row">
+              <div class="bid-row__info">
+                <div class="bid-row__title">{{ a.title }}</div>
+                <div class="bid-row__id">{{ a.id.slice(0,8).toUpperCase() }}</div>
+              </div>
+              <div class="bid-row__mid">
+                <div class="bid-row__bid">{{ fmt(a.highestBid) }}</div>
+                <div class="bid-row__label">Your bid</div>
+              </div>
+              <div class="bid-row__status">
+                <span class="status-dot"></span> Live
+              </div>
+              <router-link :to="'/auction/' + a.id" class="btn-view">View →</router-link>
+            </div>
+          </TransitionGroup>
+        </div>
+
+        <div v-else class="section-empty">
+          <div class="section-empty__icon">◈</div>
+          <div class="section-empty__title">No active bids</div>
+          <div class="section-empty__sub">Find something worth bidding on</div>
+          <router-link to="/auctions" class="btn-browse-sm">Browse Auctions →</router-link>
+        </div>
+      </div>
+
+      <!-- MY ORDERS -->
+      <div v-if="orders.length" class="section fade-up fade-up-4">
+        <div class="section-head">
+          <h2 class="section-title">Shipping & Fulfillment</h2>
+        </div>
+        <div class="bid-list">
+          <div v-for="o in orders" :key="o.id" class="bid-row" style="align-items: flex-start;">
+            <div class="bid-row__info">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <span class="badge" :class="o.status==='delivered'?'badge-live':o.status==='shipped'?'badge-orange':'badge-muted'">
+                  {{ o.status?.toUpperCase() }}
+                </span>
+                <div class="bid-row__title">{{ o.auctionTitle }}</div>
+              </div>
+              <div class="bid-row__id">ORDER: {{ o.id }}</div>
+              
+              <div v-if="o.status === 'shipped'" style="margin-top:12px;padding:12px;background:var(--bg-raised);border-radius:10px;border:1px solid var(--border)">
+                <div class="t-label" style="margin-bottom:4px">Tracking Information</div>
+                <div style="font-size:13px;margin-bottom:8px">Carrier: <strong>{{ o.courierService }}</strong></div>
+                <a :href="o.trackingUrl" target="_blank" class="btn-tracking">Track Shipment ↗</a>
+              </div>
+            </div>
+            
+            <div style="text-align:right">
+              <button v-if="o.status === 'shipped'" class="btn-delivered" :disabled="processing" @click="markDelivered(o.id)">
+                Confirm Receipt
+              </button>
+              <div v-else-if="o.status === 'delivered'" style="color:var(--green);font-size:12px;font-weight:700">✓ DELIVERED</div>
+              <div v-else style="color:var(--text-3);font-size:12px">Awaiting Dispatch</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- WON ITEMS -->
+      <div v-if="wonItems.length" class="section fade-up fade-up-4">
+        <div class="section-head">
+          <h2 class="section-title">Won Items</h2>
+        </div>
+        <div class="bid-list">
+          <div v-for="a in wonItems" :key="a.id" class="bid-row">
+            <div class="bid-row__info">
+              <div class="bid-row__title">{{ a.title }}</div>
+              <div class="bid-row__id">{{ a.id.slice(0,8).toUpperCase() }}</div>
+            </div>
+            <div class="bid-row__mid">
+              <div class="bid-row__bid bid-row__bid--won">{{ fmt(a.highestBid) }}</div>
+              <div class="bid-row__label">Final price</div>
+            </div>
+            <div class="bid-row__status bid-row__status--won">✓ Won</div>
+            <button class="btn-dispute" @click="openDispute(a.id)">Report Issue</button>
+          </div>
+        </div>
+      </div>
+
     </div>
+
+    <!-- DISPUTE MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showDisputeModal" class="modal-overlay" @click.self="showDisputeModal = false">
+          <div class="modal">
+            <div class="modal-head">
+              <h3 class="modal-title">Report an Issue</h3>
+              <button class="modal-close" @click="showDisputeModal = false">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="field-wrap">
+                <label class="field-label">Describe the problem</label>
+                <textarea v-model="disputeReason" class="field" rows="4"
+                  placeholder="e.g. Item not received, item doesn't match description…"></textarea>
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn-cancel" @click="showDisputeModal = false">Cancel</button>
+              <button class="btn-submit-dispute" :disabled="!disputeReason.trim()" @click="submitDispute">
+                Submit Dispute
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+
   </div>
 </template>
 
-<script setup>
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '../store/auth'
-import api from '../services/api'
-import { useNotification } from '../services/notification'
+<style scoped>
+.dash-page { min-height: 100vh; background: var(--bg); padding-bottom: 64px; }
 
-const authStore = useAuthStore()
-const notification = useNotification()
-const rawAuctions = ref([])
-const verifying = ref(false)
-const verifyCode = ref('')
-
-const fetchData = async () => {
-  try {
-    const res = await api.get('/api/auctions')
-    rawAuctions.value = res.data
-  } catch (err) { console.error(err) }
+/* HERO */
+.dash-hero {
+  position: relative; overflow: hidden;
+  padding: 40px 0; margin-bottom: 28px;
 }
-
-const verifyAccount = async () => {
-  if (!verifyCode.value) return notification.add('Please enter your PAN/GST number', 'error')
-  verifying.value = true
-  try {
-    await authStore.verifyKYC()
-    notification.add('Account verified! All auction categories unlocked.', 'success')
-    verifyCode.value = ''
-  } catch (err) {
-    notification.add('Verification failed. Please try again.', 'error')
-    console.error(err)
-  } finally {
-    verifying.value = false
-  }
+.dash-hero__glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 120% at 0% 50%, rgba(251,146,60,0.07) 0%, transparent 60%);
 }
+.dash-hero__inner {
+  position: relative; display: flex; align-items: center;
+  justify-content: space-between; gap: 20px; flex-wrap: wrap;
+}
+.dash-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--orange); margin-bottom: 10px; }
+.dash-greeting {
+  font-family: var(--font-display); font-size: clamp(28px, 4vw, 44px);
+  font-weight: 600; color: var(--text); margin-bottom: 8px;
+  animation: slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+  display: flex; align-items: center; gap: 12px;
+}
+.dash-greeting--pro {
+  background: linear-gradient(90deg, var(--gold) 0%, #fff 50%, var(--gold) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shine 3s linear infinite, slideUp 0.5s cubic-bezier(0.16,1,0.3,1) both;
+  font-weight: 800;
+}
+@keyframes shine { to { background-position: 200% center; } }
+.pro-badge {
+  font-size: 10px; font-weight: 900; background: var(--gold); color: #000;
+  padding: 4px 10px; border-radius: 6px; letter-spacing: 1px;
+  -webkit-text-fill-color: initial; line-height: 1;
+}
+@keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.dash-sub { font-size: 15px; color: var(--text-2); }
+.btn-browse {
+  padding: 12px 22px; background: var(--orange); color: #fff;
+  border: none; border-radius: 12px; font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  text-decoration: none; transition: all 0.2s; white-space: nowrap; flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(251,146,60,0.3);
+}
+.btn-browse:hover { background: #f97316; transform: translateY(-1px); }
 
-const biddingHistory = computed(() => {
-  const uid = authStore.user?.uid
-  if (!uid) return []
-  return rawAuctions.value
-    .filter(a => a.highestBidder === uid)
-    .map(a => ({
-      id: a.id, item: a.title,
-      amount: a.highestBid.toLocaleString(),
-      image: a.imageUrl || 'https://images.unsplash.com/photo-1547996160-81dfa63595dd?auto=format&fit=crop&q=80&w=200'
-    }))
-})
+/* STAT GRID */
+.stat-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+.stat-tile {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+  padding: 20px 22px; display: flex; flex-direction: column; gap: 4px;
+  transition: transform 0.2s, border-color 0.2s;
+}
+.stat-tile:hover { transform: translateY(-2px); border-color: var(--border-md); }
+.stat-tile--featured {
+  background: var(--orange-dim); border-color: rgba(251,146,60,0.25);
+}
+.stat-tile__icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 16px; margin-bottom: 8px; }
+.stat-tile__icon--green  { background: var(--green-dim);  color: var(--green); }
+.stat-tile__icon--orange { background: var(--orange-dim); color: var(--orange); }
+.stat-tile__icon--blue   { background: var(--blue-dim);   color: var(--blue); }
+.stat-tile__label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+.stat-tile__val { font-family: var(--font-display); font-size: 28px; color: var(--text); line-height: 1; }
+.stat-tile__val--large { font-size: 36px; color: var(--orange); }
+.stat-tile__sub { font-size: 12px; color: var(--text-2); margin-top: 2px; }
+.stat-tile__cta {
+  margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--orange);
+  text-decoration: none; display: inline-flex; align-items: center; gap: 4px;
+  transition: gap 0.15s;
+}
+.stat-tile__cta:hover { gap: 8px; }
 
-const activeBidsCount = computed(() => biddingHistory.value.length)
-const itemsWonCount = computed(() => authStore.user?.totalWins || 0)
+/* KYC BANNER */
+.kyc-banner {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 18px 22px; margin-bottom: 28px;
+  background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.25); border-radius: 14px;
+}
+.kyc-banner__icon { font-size: 28px; flex-shrink: 0; }
+.kyc-banner__body { flex: 1; }
+.kyc-banner__title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+.kyc-banner__sub   { font-size: 13px; color: var(--text-2); }
+.btn-verify {
+  padding: 9px 18px; background: var(--orange); color: #fff;
+  border-radius: 10px; font-family: var(--font-body); font-size: 13px; font-weight: 700;
+  text-decoration: none; transition: background 0.15s; flex-shrink: 0;
+}
+.btn-verify:hover { background: #f97316; }
+.banner-enter-active, .banner-leave-active { transition: all 0.3s ease; }
+.banner-enter-from, .banner-leave-to { opacity: 0; transform: translateY(-8px); }
 
-onMounted(fetchData)
-</script>
+/* SECTION */
+.section { margin-bottom: 36px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.section-title { font-family: var(--font-display); font-size: 22px; color: var(--text); }
+.section-link { font-size: 13px; color: var(--orange); font-weight: 600; text-decoration: none; }
+.section-link:hover { color: #f97316; }
+
+/* BID LIST */
+.bid-list { display: flex; flex-direction: column; gap: 8px; }
+.bid-row {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px 18px; transition: border-color 0.2s, transform 0.2s;
+}
+.bid-row:hover { border-color: var(--border-md); transform: translateX(2px); }
+.bid-row__img { width: 56px; height: 44px; object-fit: cover; border-radius: 8px; flex-shrink: 0; }
+.bid-row__info { flex: 1; min-width: 0; }
+.bid-row__title { font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bid-row__id    { font-family: var(--font-mono); font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.bid-row__mid   { text-align: right; flex-shrink: 0; }
+.bid-row__bid   { font-family: var(--font-display); font-size: 18px; color: var(--text); }
+.bid-row__bid--won { color: var(--green); }
+.bid-row__label { font-size: 11px; color: var(--text-3); }
+.bid-row__status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--green); white-space: nowrap; flex-shrink: 0; }
+.bid-row__status--won { color: var(--green); }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.5s ease infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+.btn-view {
+  padding: 7px 16px; background: transparent; border: 1px solid var(--border-md);
+  border-radius: 8px; color: var(--text-2); font-family: var(--font-body); font-size: 13px; font-weight: 600;
+  text-decoration: none; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-view:hover { background: var(--bg-hover); color: var(--text); border-color: var(--border-strong); }
+.btn-dispute {
+  padding: 7px 14px; background: var(--red-dim); border: 1px solid rgba(248,113,113,0.2);
+  border-radius: 8px; color: var(--red); font-family: var(--font-body); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+}
+.btn-dispute:hover { background: rgba(248,113,113,0.2); }
+
+.btn-tracking {
+  display: inline-block; padding: 6px 12px; background: var(--blue-dim); color: var(--blue);
+  border-radius: 6px; font-size: 12px; font-weight: 700; text-decoration: none;
+}
+.btn-delivered {
+  padding: 8px 16px; background: var(--green); color: #fff; border: none; border-radius: 8px;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: transform 0.2s;
+}
+.btn-delivered:hover:not(:disabled) { transform: scale(1.03); background: #15803d; }
+
+/* SKELETON */
+.bid-skel-list { display: flex; flex-direction: column; gap: 8px; }
+.bid-skel {
+  height: 72px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+  animation: shimmer 1.4s ease infinite;
+}
+@keyframes shimmer { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+/* EMPTY */
+.section-empty { padding: 52px 24px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.section-empty__icon  { font-size: 32px; opacity: 0.2; }
+.section-empty__title { font-family: var(--font-display); font-size: 18px; color: var(--text-2); }
+.section-empty__sub   { font-size: 13px; color: var(--text-3); }
+.btn-browse-sm {
+  margin-top: 14px; padding: 10px 20px; background: var(--orange); color: #fff;
+  border-radius: 10px; font-family: var(--font-body); font-size: 13px; font-weight: 700;
+  text-decoration: none; transition: background 0.15s;
+}
+.btn-browse-sm:hover { background: #f97316; }
+
+/* Row transition */
+.row-enter-active { transition: all 0.3s ease; }
+.row-enter-from   { opacity: 0; transform: translateX(-10px); }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 400;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border-md);
+  border-radius: 18px; width: 100%; max-width: 460px;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px; border-bottom: 1px solid var(--border);
+}
+.modal-title { font-family: var(--font-display); font-size: 20px; color: var(--text); }
+.modal-close {
+  width: 32px; height: 32px; background: var(--bg-raised); border: none; border-radius: 50%;
+  color: var(--text-2); cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; transition: background 0.15s;
+}
+.modal-close:hover { background: var(--bg-hover); }
+.modal-body { padding: 24px; }
+.modal-foot {
+  display: flex; gap: 10px; justify-content: flex-end;
+  padding: 0 24px 24px;
+}
+.btn-cancel {
+  padding: 10px 20px; background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 10px; color: var(--text-2); font-family: var(--font-body); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-cancel:hover { background: var(--bg-hover); color: var(--text); }
+.btn-submit-dispute {
+  padding: 10px 20px; background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 10px; color: var(--red); font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.15s;
+}
+.btn-submit-dispute:hover:not(:disabled) { background: rgba(248,113,113,0.2); }
+.btn-submit-dispute:disabled { opacity: 0.4; cursor: not-allowed; }
+.modal-enter-active, .modal-leave-active { transition: opacity 0.2s ease; }
+.modal-enter-active .modal, .modal-leave-active .modal { transition: transform 0.25s cubic-bezier(0.16,1,0.3,1); }
+.modal-enter-from { opacity: 0; }
+.modal-enter-from .modal { transform: scale(0.95) translateY(8px); }
+.modal-leave-to { opacity: 0; }
+
+/* QUICK ADD CARD */
+.quick-add-card {
+  background: var(--bg-card); border: 1px solid var(--border-md); border-radius: 16px;
+  padding: 24px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+.quick-add-title { font-family: var(--font-display); font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 20px; }
+.btn-quick-add {
+  margin-top: 12px; padding: 12px 24px; background: var(--gold); color: #000;
+  border: none; border-radius: 10px; font-family: var(--font-body); font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-quick-add:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
+
+@media (max-width: 900px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .bid-row__status { display: none; }
+  .dash-hero__inner { flex-direction: column; align-items: flex-start; }
+}
+</style>

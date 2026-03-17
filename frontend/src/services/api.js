@@ -1,23 +1,37 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config/api';
-import { useAuthStore } from '../store/auth';
+// FILE: frontend/src/services/api.js
+import axios from 'axios'
+import { API_URL } from '../config/api'
+import { auth } from '../config/firebase'
 
 const api = axios.create({
-  baseURL: API_BASE_URL
-});
+  baseURL: API_URL,
+  timeout: 15000,
+})
 
-// Interceptor to inject Firebase ID Token into every request
+// Inject Firebase ID token on every request
 api.interceptors.request.use(async (config) => {
-  const authStore = useAuthStore();
-  const token = await authStore.getToken();
-  
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  try {
+    const user = auth.currentUser
+    if (user) {
+      const token = await user.getIdToken()
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  } catch {
+    // Not signed in — proceed without auth header
   }
-  
-  return config;
-}, (error) => {
-  return Promise.reject(error);
-});
+  return config
+})
 
-export default api;
+// Surface backend error messages cleanly
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const msg = err.response?.data?.error
+      || err.response?.data?.message
+      || err.message
+      || 'Network error'
+    return Promise.reject(new Error(msg))
+  }
+)
+
+export default api
