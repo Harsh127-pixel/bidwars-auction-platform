@@ -84,8 +84,12 @@ const fetchHistory = async () => {
   loading.value = true
   try {
     const res = await api.get('/api/wallet/history')
-    history.value = res.data
-  } catch { notification.add('Could not load history.', 'error') }
+    history.value = Array.isArray(res.data) ? res.data : []
+    console.log('[Wallet] History loaded:', history.value.length)
+  } catch (err) { 
+    console.error('[Wallet] Load Error:', err)
+    notification.add('Could not load history: ' + (err.message || 'Unknown error'), 'error') 
+  }
   finally { loading.value = false }
 }
 
@@ -156,6 +160,12 @@ const fmtFullDate = (ts) => {
   })
 }
 
+const copyUid = () => {
+  if (!authStore.user?.uid) return
+  navigator.clipboard.writeText(authStore.user.uid)
+  notification.add('Wallet ID copied to clipboard', 'info')
+}
+
 onMounted(fetchHistory)
 </script>
 
@@ -172,6 +182,11 @@ onMounted(fetchHistory)
             <div class="bc-val bc-val--huge">{{ fmt(authStore.user?.credits) }}</div>
             <div class="bc-sub">Escrow (Held): {{ fmt(authStore.user?.heldCredits) }}</div>
             
+            <div v-if="authStore.user?.uid" class="wallet-id-tag" title="Click to copy Wallet ID" @click="copyUid">
+              ID: {{ authStore.user.uid.slice(0, 8) }}...{{ authStore.user.uid.slice(-4) }}
+              <v-icon size="12" class="ml-1">mdi-content-copy</v-icon>
+            </div>
+
             <button class="btn-add-funds" @click="showTopup = true">
               Add Funds +
             </button>
@@ -312,11 +327,15 @@ onMounted(fetchHistory)
               </div>
               
               <div class="receipt-details">
-                <div class="rd-row"><span class="rd-key">Transaction ID</span><span class="rd-val t-mono">{{ selectedTx.id }}</span></div>
+                <div class="rd-row"><span class="rd-key">Reference ID</span><span class="rd-val t-mono">{{ selectedTx.id }}</span></div>
                 <div v-if="selectedTx.auctionId" class="rd-row"><span class="rd-key">Asset ID</span><span class="rd-val t-mono">{{ selectedTx.auctionId }}</span></div>
+                <div class="rd-row"><span class="rd-key">User ID</span><span class="rd-val t-mono" style="font-size:10px">{{ selectedTx.userId }}</span></div>
                 <div class="rd-row"><span class="rd-key">Status</span><span class="rd-val"><span class="badge" :class="selectedTx.status === 'failed' ? 'badge-red' : 'badge-live'">{{ (selectedTx.status || 'SUCCESS').toUpperCase() }}</span></span></div>
                 <div class="rd-row"><span class="rd-key">Date & Time</span><span class="rd-val">{{ fmtFullDate(selectedTx.createdAt) }}</span></div>
-                <div class="rd-row" style="border:none"><span class="rd-key">New Balance</span><span class="rd-val" style="font-weight:700">{{ fmt(selectedTx.newBalance) }}</span></div>
+                <v-divider class="my-2"></v-divider>
+                <div class="rd-row"><span class="rd-key">Previous Balance</span><span class="rd-val">{{ fmt(selectedTx.prevBalance) }}</span></div>
+                <div class="rd-row"><span class="rd-key">Change Amount</span><span class="rd-val" :class="selectedTx.amount >= 0 ? 'cr' : 'db'">{{ selectedTx.amount >= 0 ? '+' : '' }}{{ fmt(selectedTx.amount) }}</span></div>
+                <div class="rd-row" style="border:none"><span class="rd-key">New Balance</span><span class="rd-val" style="font-weight:700; font-size:16px">{{ fmt(selectedTx.newBalance) }}</span></div>
               </div>
 
               <div v-if="canDispute(selectedTx)" class="receipt-footer">
@@ -390,6 +409,14 @@ onMounted(fetchHistory)
 }
 .btn-add-funds:hover { transform: translateY(-2px); scale: 1.05; box-shadow: 0 12px 24px rgba(212,175,55,0.4); }
 .btn-add-funds:active { transform: translateY(0); scale: 0.98; }
+
+.wallet-id-tag {
+  background: var(--bg-raised); border: 1px solid var(--border-md);
+  border-radius: 8px; padding: 4px 10px; font-size: 11px; font-family: var(--font-mono);
+  color: var(--text-3); cursor: pointer; margin-bottom: 24px; transition: all 0.2s;
+  display: flex; align-items: center; gap: 4px;
+}
+.wallet-id-tag:hover { background: var(--bg-hover); color: var(--text-2); border-color: var(--border-strong); }
 
 /* BODY */
 .wallet-body { padding-bottom: 64px; }

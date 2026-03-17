@@ -154,15 +154,6 @@ router.post("/admin/updateCredits", verifyToken, verifyAdmin, async (req, res) =
   }
 })
 
-// Protected: Get Wallet History
-router.get("/wallet/history", verifyToken, async (req, res) => {
-  try {
-    const history = await ledgerService.getHistory(req.user.uid)
-    res.json(history)
-  } catch (err) {
-    res.status(500).json({ error: err.message })
-  }
-})
 
 // Protected: Wallet Topup
 router.post("/wallet/topup", verifyToken, async (req, res) => {
