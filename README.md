@@ -1,126 +1,228 @@
-# 🏛️ BidWars: Elite Auction Marketplace
+# 🏛️ BidWars — Elite Auction Marketplace
 
-BidWars is a high-fidelity, institutional-grade auction platform designed for high-stakes repossessed assets, digital collectibles, and luxury goods. Built with a focus on **absolute viewport symmetry**, the **Elite Indigo** aesthetic, and **Material Design 3** principles, it provides a seamless and secure bidding experience.
+> A high-fidelity, institutional-grade auction platform for repossessed assets, digital collectibles, and luxury goods. Built with real-time bidding, a premium **Elite Indigo** design system, and **Material Design 3** principles.
 
----
-
-## 🚀 Key Features
-
-### 💎 Elite Aesthetic & UX
-- **Elite Indigo Pro**: A premium design system using deep indigos, glassmorphism, and subtle micro-animations.
-- **Institutional Onboarding**: Re-calibrated **Login** and **Register** gateways with dual-pane scaling and HUD-overlays.
-- **Marketplace Command Floor**: High-fidelity product grid with live status indicators and real-time market pulse.
-- **Sovereign Dashboard**: Personalized portfolio view for bidders and executives.
-
-### 🛡️ Security & Protocol
-- **BWC Core Encryption**: Secure session management and identity verification.
-- **Verified Circuit**: Participation protocols for institutional bidding floors.
-- **KYC-Ready Protocol**: Ready for global liquidity pool integration.
-- **Admin Surveillance**: Dedicated administration floor for asset liquidation and user auditing.
-
-### ⚡ Real-Time Intelligence
-- **Live Bidding Floor**: Instant bid synchronization via Socket.IO.
-- **Market Pulse**: Real-time notifications and toast protocols for auction events.
-- **Wealth Ledger**: Integrated wallet system for Managing Credits and EMD (Earnest Money Deposit).
+🔗 **Live Demo**: [bidwars.gaurangjadoun.in](https://bidwars.gaurangjadoun.in)
 
 ---
 
-## 🛠️ Technology Stack
+## 📋 Table of Contents
+
+- [Tech Stack](#-tech-stack)
+- [Features](#-features)
+- [Setup Instructions](#-setup-instructions)
+- [Project Structure](#-project-structure)
+- [Environment Variables](#-environment-variables)
+- [Running the Platform](#-running-the-platform)
+- [Known Limitations](#-known-limitations)
+
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
-- **Framework**: [Vue 3](https://vuejs.org/) (Composition API)
-- **UI Engine**: [Vuetify 3](https://vuetifyjs.com/) (Material Design 3)
-- **Styling**: [TailwindCSS 4](https://tailwindcss.com/) & SASS
-- **State Management**: [Pinia](https://pinia.vuejs.org/)
-- **Routing**: Vue Router 4
-- **Real-Time**: Socket.IO Client
+| Technology | Purpose |
+|---|---|
+| [Vue 3](https://vuejs.org/) (Composition API) | Core UI framework |
+| [Vuetify 3](https://vuetifyjs.com/) | Material Design 3 component library |
+| [TailwindCSS 4](https://tailwindcss.com/) + SASS | Utility-first styling & custom theming |
+| [Pinia](https://pinia.vuejs.org/) | Global state management |
+| Vue Router 4 | Client-side routing |
+| Socket.IO Client | Real-time bidding & live notifications |
 
 ### Backend
-- **Server**: [Node.js](https://nodejs.org/) & [Express 5](https://expressjs.com/)
-- **Database/Auth**: [Firebase](https://firebase.google.com/) (Firestore & Admin SDK)
-- **Communications**: Socket.IO
-- **AI Integration**: Google Generative AI (Gemini SDK)
+| Technology | Purpose |
+|---|---|
+| [Node.js](https://nodejs.org/) (`^20.19.0` or `>=22.12.0`) | Runtime environment |
+| [Express 5](https://expressjs.com/) | REST API server |
+| [Firebase Firestore](https://firebase.google.com/) | Primary database |
+| Firebase Admin SDK | Server-side authentication & admin operations |
+| Socket.IO | WebSocket server for real-time events |
+| Google Generative AI (Gemini SDK) | AI-powered features |
+
+### Infrastructure
+| Technology | Purpose |
+|---|---|
+| Firebase Auth | User identity & session management |
+| Render | Cloud hosting & deployment (`render.yaml` included) |
 
 ---
 
-## ⚙️ Initial Setup Protocol
+## ✨ Features
+
+### 🎨 Elite Aesthetic & UX
+- **Elite Indigo Pro Design System** — deep indigos, glassmorphism effects, and micro-animations throughout
+- **Institutional Onboarding** — dual-pane Login and Register gateways with HUD-style overlays
+- **Marketplace Command Floor** — high-fidelity product grid with live status badges and real-time market pulse indicators
+- **Sovereign Dashboard** — personalized portfolio view for both bidders and admin executives
+- **Fully Responsive** — absolute viewport symmetry across desktop and mobile
+
+### ⚡ Real-Time Intelligence
+- **Live Bidding Floor** — instant bid synchronization via Socket.IO; all connected users see bids update in real time
+- **Market Pulse Notifications** — toast alerts for outbid events, auction closings, and platform announcements
+- **Auction Countdown Timers** — live countdowns per listing that auto-close when time expires
+
+### 💰 Wallet & Transactions
+- **Wealth Ledger** — integrated wallet system for managing credits
+- **EMD (Earnest Money Deposit)** support — bidders lock funds before participating in high-value auctions
+- Deposit and withdrawal flows with transaction history
+
+### 🛡️ Security & Compliance
+- **BWC Core Encryption** — secure session management and identity verification
+- **KYC-Ready Protocol** — architecture supports global liquidity pool and identity verification integrations
+- **Admin Surveillance Floor** — dedicated admin panel for asset management, user auditing, and auction lifecycle control
+- **Verified Circuit** — participation protocols enforce eligibility before a user can place bids
+
+### 🤖 AI Integration
+- **Google Gemini SDK** integrated on the backend for AI-assisted features (e.g., asset description generation, valuation hints)
+
+---
+
+## ⚙️ Setup Instructions
 
 ### Prerequisites
-- Node.js (`^20.19.0` or `>=22.12.0`)
-- Firebase Account & Project Configuration
-- Service Account Credentials for Admin SDK
 
-### 1. Repository Initialization
+- **Node.js** `^20.19.0` or `>=22.12.0`
+- **npm** `>=9`
+- A **Firebase project** with Firestore enabled and a Web App registered
+- A **Firebase Service Account** (JSON key) for the Admin SDK
+
+---
+
+### 1. Clone the Repository
+
 ```bash
-git clone <repository-url>
+git clone https://github.com/Harsh127-pixel/bidwars-auction-platform.git
 cd bidwars-auction-platform
 ```
 
-### 2. Backend Calibration
+---
+
+### 2. Backend Setup
+
 ```bash
 cd backend
 npm install
 ```
-Create a `.env` file in the `/backend` directory:
+
+Create a `.env` file inside the `/backend` directory:
+
 ```env
 PORT=5000
-FIREBASE_PROJECT_ID=your-project-id
-FIREBASE_CLIENT_EMAIL=your-service-account-email
-FIREBASE_PRIVATE_KEY="your-private-key"
+FIREBASE_PROJECT_ID=your-firebase-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email@project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVATE KEY-----\n"
 ADMIN_EMAIL=admin@bidwars.elite
+GEMINI_API_KEY=your-google-gemini-api-key
 ```
 
-### 3. Frontend Execution
+> ⚠️ The `FIREBASE_PRIVATE_KEY` must be wrapped in double quotes and have literal `\n` newlines preserved exactly as they appear in the downloaded service account JSON.
+
+---
+
+### 3. Frontend Setup
+
 ```bash
 cd ../frontend
 npm install
 ```
-Create a `.env` file in the `/frontend` directory:
+
+Create a `.env` file inside the `/frontend` directory:
+
 ```env
-VITE_FIREBASE_API_KEY=your-api-key
-VITE_FIREBASE_AUTH_DOMAIN=your-auth-domain
+VITE_FIREBASE_API_KEY=your-web-api-key
+VITE_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
 VITE_FIREBASE_PROJECT_ID=your-project-id
-VITE_FIREBASE_STORAGE_BUCKET=your-storage-bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+VITE_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your-messaging-sender-id
 VITE_FIREBASE_APP_ID=your-app-id
 VITE_ADMIN_EMAIL=admin@bidwars.elite
 ```
+
+> All `VITE_FIREBASE_*` values are found in your Firebase project's **Project Settings → Your Apps → SDK setup and configuration**.
 
 ---
 
 ## 🚦 Running the Platform
 
-### Start Backend Development Logic
+### Development Mode
+
+Open two terminal windows:
+
+**Terminal 1 — Backend:**
 ```bash
 cd backend
 npm run dev
 ```
+The API server starts at `http://localhost:5000`.
 
-### Start Frontend Control Floor
+**Terminal 2 — Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
+The Vue dev server starts at `http://localhost:5173` (or the next available port).
 
----
+### Production Build
 
-## 📂 Project Architecture
-```text
-/backend
-  ├── config/        # Firebase & Server configurations
-  ├── routes/        # API Endpoints (Auctions, Bids, Wallet)
-  ├── sockets/       # Real-time bidding logic
-  └── server.js      # Main entry point
+```bash
+# Build the frontend
+cd frontend
+npm run build
 
-/frontend
-  ├── src/
-  │   ├── pages/     # Main views (Admin, Dashboard, Login, Wallet)
-  │   ├── components/# Reusable MD3 components
-  │   ├── store/     # Pinia stores (Auth, Auction)
-  │   └── services/  # API & Socket services
+# Start the backend in production
+cd ../backend
+npm start
 ```
 
 ---
 
-## 📜 Compliance & Security
-This platform follows **BWC Compliance Standards**. All transactions and bids are audited within the **Identity Verified** circuit. 
+## 📂 Project Structure
+
+```
+bidwars-auction-platform/
+├── backend/
+│   ├── config/          # Firebase Admin & server config
+│   ├── routes/          # REST API routes (auctions, bids, wallet, users)
+│   ├── sockets/         # Socket.IO real-time bidding logic
+│   └── server.js        # Express app entry point
+│
+├── frontend/
+│   └── src/
+│       ├── pages/       # Route-level views (Admin, Dashboard, Login, Wallet, Marketplace)
+│       ├── components/  # Reusable Material Design 3 components
+│       ├── store/       # Pinia stores (auth, auction, wallet)
+│       └── services/    # Axios API client & Socket.IO service
+│
+├── docs/                # Additional documentation & assets
+├── render.yaml          # Render.com deployment configuration
+├── .gitignore
+├── README.md
+└── SETUP.md
+```
+
+---
+
+## ⚠️ Known Limitations
+
+| Area | Limitation |
+|---|---|
+| **KYC / Identity Verification** | The KYC-ready architecture is present but full third-party identity verification (e.g., Stripe Identity, Onfido) is not yet integrated. Users are not currently verified against government IDs. |
+| **Payment Gateway** | No real-money payment processor is integrated. The wallet system uses platform credits only; actual fiat on-ramp/off-ramp (e.g., Razorpay, Stripe) is not wired up. |
+| **Email Notifications** | Transactional emails (outbid alerts, auction win confirmations) are not implemented. Notifications are in-app only via toast messages. |
+| **Image / File Uploads** | Asset image management relies on externally hosted URLs. A dedicated file upload system (e.g., Firebase Storage) is not fully integrated in the current version. |
+| **AI Features (Gemini)** | The Gemini SDK is integrated on the backend but AI-powered features may be limited to specific endpoints; not all listing flows have AI assistance enabled. |
+| **Scalability** | Socket.IO runs on a single Node.js process. For high-concurrency auctions with many simultaneous bidders, a Redis adapter would be required to scale horizontally. |
+| **Mobile App** | The platform is a responsive web app only; no native iOS or Android app exists. |
+| **Auction Types** | Currently supports standard timed auctions. Dutch auctions, sealed-bid, and reserve-price auctions are not implemented. |
+| **Test Coverage** | No automated unit or integration tests are included in the repository at this time. |
+
+---
+
+## 📜 License
+
+This project is currently unlicensed. Contact the repository owner for usage permissions.
+
+---
+
+*Built with ❤️ by [Harsh127-pixel](https://github.com/Harsh127-pixel)*,[gj2908](https://github.com/gj2908)*,[Jahnvitivari12](https://github.com/Jahnvitivari12)*
