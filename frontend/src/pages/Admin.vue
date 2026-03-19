@@ -105,6 +105,7 @@ const allTabsConfigs = [
   { id:'employees',  label:'Employees',   adminOnly: true },
   { id:'logs',       label:'Audit Logs',  permission: 'view_audit' },
   { id:'reports',    label:'AI Reports',  permission: 'view_audit' },
+  { id:'infrastructure', label:'Infrastructure', permission: 'manage_settings' },
   { id:'settings',   label:'Settings',    permission: 'manage_settings' },
   { id:'create',     label:'+ New Lot',   permission: 'manage_auctions' },
 ]
@@ -361,7 +362,7 @@ const resolveDispute = async (id, resolution) => {
 
 const toggleUserStatus = async (userId, status) => {
   try { await api.put(`/api/admin/users/${userId}/status`, { status }); notification.add(`User ${status}`, 'success'); fetchData() }
-  catch { notification.add('Failed', 'error') }
+  catch (e) { notification.add(`Failed: ` + (e.response?.data?.error || e.message), 'error') }
 }
 
 const approveProposal = async (proposalId, status, notes = '') => {
@@ -377,13 +378,13 @@ const openPropPreview = (p) => {
 const cancelKYC = async (userId) => {
   if (!confirm('Force cancel KYC for this user?')) return
   try { await api.put(`/api/admin/users/${userId}/cancel-kyc`); notification.add('KYC Cancelled by admin', 'success'); fetchData() }
-  catch { notification.add('Failed to cancel KYC', 'error') }
+  catch (e) { notification.add('Failed to cancel KYC: ' + (e.response?.data?.error || e.message), 'error') }
 }
 
 const cancelSubscription = async (userId) => {
   if (!confirm('Force cancel subscription for this user?')) return
   try { await api.put(`/api/admin/users/${userId}/cancel-subscription`); notification.add('Subscription Cancelled by admin', 'success'); fetchData() }
-  catch { notification.add('Failed to cancel subscription', 'error') }
+  catch (e) { notification.add('Failed to cancel subscription: ' + (e.response?.data?.error || e.message), 'error') }
 }
 
 const updateFulfillment = async () => {
@@ -508,7 +509,7 @@ const unflagUser = async (userId) => {
     await api.put(`/api/admin/users/${userId}/unflag`)
     notification.add('User unflagged', 'success')
     fetchData()
-  } catch (e) { notification.add('Failed to unflag', 'error') }
+  } catch (e) { notification.add('Failed to unflag: ' + (e.response?.data?.error || e.message), 'error') }
 }
 
 const openAudit = async (user) => {
@@ -540,19 +541,15 @@ onUnmounted(() => {
   <div class="page-content">
     <div class="page-wrap">
       <!-- Compact Header -->
-      <div class="admin-header-compact fade-up">
-        <div class="admin-header-left">
-          <h1 class="t-display t-title" style="font-size:clamp(20px,3vw,28px);margin:0">
-            {{ tabs.find(t => t.id === tab)?.label || 'Overview' }}
-          </h1>
-          <div class="badge badge-live" style="margin-left:12px"><span class="live-dot"></span>Online</div>
-        </div>
-        <div class="header-actions">
-           <button class="btn btn-ghost btn-sm" @click="fetchData" :disabled="loading" style="gap:6px">
-             <v-icon size="16" :class="{'btn-spin': loading}">mdi-refresh</v-icon>
-             <span class="d-none d-sm-inline">Refresh</span>
-           </button>
-        </div>
+      <div class="admin-header-compact fade-up" style="display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; margin-bottom: 24px;">
+        <h1 class="t-display t-title" style="font-size:clamp(20px,3vw,28px);margin:0">
+          {{ tabs.find(t => t.id === tab)?.label || 'Overview' }}
+        </h1>
+        <div class="badge badge-live" style="margin:0"><span class="live-dot"></span>Online</div>
+        <button class="btn btn-ghost btn-sm" @click="fetchData" :disabled="loading" style="gap:6px; margin:0;">
+          <v-icon size="16" :class="{'btn-spin': loading}">mdi-refresh</v-icon>
+          <span class="d-none d-sm-inline">Refresh</span>
+        </button>
       </div>
 
       <!-- Mobile-only tab selector (hidden on desktop where App.vue sub-nav shows) -->
@@ -875,13 +872,57 @@ onUnmounted(() => {
         <div class="card" style="padding:28px;max-width:600px">
           <div class="t-label" style="margin-bottom:20px">Platform Settings</div>
           <div style="display:flex;flex-direction:column;gap:24px">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;background:var(--bg-raised);border-radius:12px;border:1px solid var(--border)">
+            <div class="settings-option">
               <div>
-                <div style="font-weight:600;margin-bottom:4px">Razorpay Simulation Mode</div>
-                <div style="font-size:12px;color:var(--text-3)">Bypass real payment gateway for testing</div>
+                <div class="option-title">Razorpay Simulation Mode</div>
+                <div class="option-desc">Bypass real payment gateway for testing</div>
               </div>
               <label class="switch">
                 <input type="checkbox" v-model="platformSettings.razorpaySimulation" @change="updateSettings">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="settings-option">
+              <div>
+                <div class="option-title">reCAPTCHA Protection</div>
+                <div class="option-desc">Force bot detection on sensitive endpoints</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="platformSettings.captchaEnabled" @change="updateSettings">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="settings-option">
+              <div>
+                <div class="option-title">Maintenance Mode</div>
+                <div class="option-desc">Disable all site functionality for everyone else</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="platformSettings.maintenanceMode" @change="updateSettings">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="settings-option">
+              <div>
+                <div class="option-title">New Registrations</div>
+                <div class="option-desc">Allow/disallow new users to create accounts</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="platformSettings.registrationEnabled" @change="updateSettings">
+                <span class="slider round"></span>
+              </label>
+            </div>
+
+            <div class="settings-option">
+              <div>
+                <div class="option-title">Mandatory Email Verification</div>
+                <div class="option-desc">Users must verify email before participating</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" v-model="platformSettings.emailVerificationRequired" @change="updateSettings">
                 <span class="slider round"></span>
               </label>
             </div>
@@ -942,6 +983,47 @@ onUnmounted(() => {
               <div class="export-sub">Official statement</div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- INFRASTRUCTURE / HEALTH -->
+      <div v-if="tab === 'infrastructure'" class="fade-up fade-up-2">
+        <div class="card" style="overflow:hidden">
+          <div style="padding:20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+            <div>
+              <div class="t-label">Backend Health Monitoring</div>
+              <div style="font-size:12px;color:var(--text-3);margin-top:4px">Auto-pings every 30 minutes to ensure high availability.</div>
+            </div>
+            <button class="btn btn-gold btn-sm" @click="authStore.pingHealthCheck">Ping Now</button>
+          </div>
+          
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th style="text-align:right">Latency</th>
+                <th style="text-align:center">Status</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ping, i) in authStore.pingHistory" :key="i">
+                <td class="t-mono">{{ new Date(ping.timestamp).toLocaleString('en-IN') }}</td>
+                <td style="text-align:right" :style="`color:${ping.latency > 1000 ? 'var(--red)' : ping.latency > 500 ? 'var(--orange)' : 'var(--green)'}`">
+                  {{ ping.latency }}ms
+                </td>
+                <td style="text-align:center">
+                  <span class="badge" :class="`badge-${ping.status === 'success' ? 'live' : ping.status === 'warning' ? 'orange' : 'red'}`">
+                    {{ ping.status.toUpperCase() }}
+                  </span>
+                </td>
+                <td style="font-size:12px;color:var(--text-2)">{{ ping.message }}</td>
+              </tr>
+              <tr v-if="!authStore.pingHistory.length">
+                <td colspan="4" style="text-align:center;padding:40px;color:var(--text-3)">No ping history available yet.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -1374,6 +1456,9 @@ input:checked + .slider { background-color: var(--gold); }
 input:checked + .slider:before { transform: translateX(20px); }
 .slider.round { border-radius: 34px; }
 .slider.round:before { border-radius: 50%; }
+.settings-option { display:flex; align-items:center; justify-content:space-between; padding:16px; background:var(--bg-raised); border-radius:12px; border:1px solid var(--border); }
+.option-title { font-weight:600; margin-bottom:4px; }
+.option-desc { font-size:12px; color:var(--text-3); }
 
 /* Dialog */
 .dialog-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:300; display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -1399,5 +1484,13 @@ input:checked + .slider:before { transform: translateX(20px); }
 .export-name { font-weight:700; color:var(--text); margin-bottom:4px; }
 .export-sub { font-size:12px; color:var(--text-3); }
 
-@media (max-width:768px) { .two-col { grid-template-columns:1fr; } .export-grid { grid-template-columns:1fr; } }
+@media (max-width:768px) {
+  .two-col { grid-template-columns:1fr; }
+  .export-grid { grid-template-columns:1fr; }
+  .admin-header-compact { flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .admin-header-left { flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+  .admin-header-left .badge { margin-left: 0 !important; }
+  .tab-pill-group { flex-wrap: wrap; justify-content: center; width: 100%; margin-top: 12px; }
+  .header-actions { display: flex; justify-content: center; width: 100%; }
+}
 </style>

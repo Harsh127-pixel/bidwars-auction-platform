@@ -20,14 +20,35 @@ export const useAuthStore = defineStore('auth', {
     role: null,
     loading: true,       // true until Firebase resolves the initial auth state
     _userListener: null, // Firestore real-time listener unsubscribe fn
-    _authInitialized: false
+    _authInitialized: false,
+    pingHistory: JSON.parse(localStorage.getItem('admin_ping_history') || '[]'),
+    platformSettings: {
+      captchaEnabled: true,
+      registrationEnabled: true,
+      maintenanceMode: false,
+      emailVerificationRequired: false
+    }
   }),
 
   actions: {
     // Call once at app startup (App.vue, top-level — NOT in onMounted)
-    init() {
+    async init() {
       if (this._authInitialized || !auth) return
       this._authInitialized = true
+
+      // Load platform settings (public)
+      try {
+        const { API_URL } = await import('../config/api')
+        const res = await fetch(`${API_URL}/api/settings`)
+        const data = await res.json()
+        this.platformSettings = { ...this.platformSettings, ...data }
+      } catch (err) {
+        console.warn('[AuthStore] Settings load failed:', err.message)
+      }
+
+      // Ping health check every 10 minutes to keep backend alive (Render free tier)
+      this.pingHealthCheck()
+      setInterval(() => this.pingHealthCheck(), 10 * 60 * 1000)
 
       onAuthStateChanged(auth, async (firebaseUser) => {
         if (firebaseUser) {
@@ -157,6 +178,33 @@ export const useAuthStore = defineStore('auth', {
         this.user = { uid: auth.currentUser.uid, ...snap.data() }
         this.role = snap.data().role
       }
+    },
+
+    async pingHealthCheck() {
+      const start = Date.now()
+      let status = 'error'
+      let message = 'Connection failed'
+      
+      try {
+        const { API_URL } = await import('../config/api')
+        const res = await fetch(`${API_URL}/api/health`)
+        const data = await res.json()
+        status = data.status === 'ok' ? 'success' : 'warning'
+        message = `Backend responded: ${data.status}`
+      } catch (err) {
+        message = err.message || 'Network error'
+      }
+
+      const entry = {
+        timestamp: new Date().toISOString(),
+        latency: Date.now() - start,
+        status,
+        message
+      }
+
+      this.pingHistory.unshift(entry)
+      if (this.pingHistory.length > 50) this.pingHistory.pop()
+      localStorage.setItem('admin_ping_history', JSON.stringify(this.pingHistory))
     }
   }
 })

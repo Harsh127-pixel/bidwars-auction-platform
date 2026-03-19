@@ -82,7 +82,7 @@ const handleLogout = async () => {
 const resetPassword = async () => {
   if (!authStore.user?.email) return
   try {
-    await api.post('/api/users/forgot-password', { email: authStore.user.email })
+    await authStore.resetPassword(authStore.user.email)
     notification.add('Password reset link sent to your email!', 'success')
   } catch (err) {
     notification.add('Failed to send reset link.', 'error')
@@ -97,6 +97,11 @@ const isAuthPage = computed(() =>
 
 const isStaff = computed(() => authStore.role === 'admin' || authStore.role === 'employee')
 const isOnAdminPage = computed(() => route.path.startsWith('/admin'))
+const isMaintenance = computed(() => {
+  if (!authStore.platformSettings?.maintenanceMode) return false
+  if (isStaff.value) return false
+  return true
+})
 
 // Admin tabs config — must match Admin.vue allTabsConfigs
 const allAdminTabs = [
@@ -288,6 +293,20 @@ onMounted(() => {
 
 <template>
   <v-app :theme="isDark ? 'dark' : 'light'" :class="isDark ? 'dark' : ''">
+    <!-- Maintenance Overlay -->
+    <div v-if="isMaintenance" class="maintenance-overlay">
+       <div class="maintenance-content">
+          <div class="maintenance-logo">⚑</div>
+          <div class="maintenance-icon">🛠️</div>
+          <h1 class="maintenance-title">Platform Maintenance</h1>
+          <p class="maintenance-text">We're performing scheduled upgrades to improve our bidding engine. Our live auctions will resume shortly.</p>
+          <div v-if="authStore.user" class="pa-4">
+            <v-btn @click="handleLogout" variant="outlined" color="primary" class="rounded-lg">Sign Out</v-btn>
+          </div>
+          <div class="maintenance-footer">© 2026 BidWars Platform</div>
+       </div>
+    </div>
+
     <!-- Mobile Drawer -->
     <v-navigation-drawer v-model="drawer" temporary location="right" width="300"
       style="background-color: var(--bg-card); border-left: 1px solid var(--border-color);">
@@ -367,7 +386,7 @@ onMounted(() => {
       style="background-color: var(--bg-card) !important; border-bottom: 1px solid var(--border-color) !important; z-index: 100;">
       <v-container class="d-flex flex-column fill-height pa-0" style="max-width: 1280px; margin: 0 auto;" fluid>
         <!-- Primary row -->
-        <div class="d-flex align-center px-4" style="height: 64px; width: 100%;">
+        <div class="d-flex align-center px-md-4 px-3" style="height: 64px; width: 100%;">
           <router-link to="/" class="d-flex align-center text-decoration-none" style="gap: 8px;">
             <div
               style="width: 34px; height: 34px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
@@ -662,4 +681,12 @@ onMounted(() => {
 @media (max-width: 959px) {
   .admin-subnav { display: none !important; }
 }
+
+.maintenance-overlay { position: fixed; inset: 0; background: var(--bg); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+.maintenance-content { max-width: 480px; width: 100%; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.maintenance-logo { font-size: 32px; color: var(--accent); margin-bottom: 32px; }
+.maintenance-icon { font-size: 64px; }
+.maintenance-title { font-family: 'DM Serif Display', serif; font-size: 36px; color: var(--text-primary); margin: 0; }
+.maintenance-text { font-size: 16px; color: var(--text-secondary); line-height: 1.6; }
+.maintenance-footer { margin-top: 40px; font-size: 12px; color: var(--text-muted); opacity: 0.6; }
 </style>

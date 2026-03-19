@@ -24,6 +24,11 @@ const showDisputeModal = ref(false)
 const disputeReason = ref('')
 const disputeLoading = ref(false)
 
+const showWithdraw = ref(false)
+const withdrawAmount = ref('')
+const bankDetails = ref({ accountNo: '', confirmAccountNo: '', ifsc: '', name: '' })
+const withdrawLoading = ref(false)
+
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN')
 const totalWealth = computed(() => (authStore.user?.credits || 0) + (authStore.user?.heldCredits || 0))
 const availablePct = computed(() => totalWealth.value ? Math.round((authStore.user?.credits || 0) / totalWealth.value * 100) : 100)
@@ -42,7 +47,7 @@ const handleTopup = async () => {
   if (!topupAmount.value || topupAmount.value < 100) return notification.add('Min ₹100', 'error')
   topupLoading.value = true
   try {
-    const res = await api.post('/api/payments/create-order', { amount: topupAmount.value * 100 })
+    const res = await api.post('/api/payments/create-order', { amount: topupAmount.value })
     rzpData.value = { 
       orderId: res.data.orderId || res.data.id, 
       key: res.data.key, 
@@ -61,9 +66,8 @@ const simulateTopup = handleTopup
 const handlePaymentSuccess = async (data) => {
   topupLoading.value = true
   try {
-    // 2. Verify payment on server
     await api.post('/api/payments/verify', data)
-    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added to your wallet!`, 'success')
+    notification.add(`₹${Number(topupAmount.value).toLocaleString()} added to your wallet! (No Processing Fee)`, 'success')
     authStore.init() // Refresh user data for balance
     await fetchHistory()
   } catch (e) {
@@ -119,6 +123,39 @@ const txIcon = (type) => ({ WALLET_TOPUP:'↓', BID_HOLD:'⊠', BID_REFUND:'↩'
 const openTxDetails = (tx) => {
   selectedTx.value = tx
   showTxModal.value = true
+}
+
+const handleWithdraw = async () => {
+  const amt = Number(withdrawAmount.value)
+  if (!amt || amt < 100) return notification.add('Min withdrawal ₹100', 'error')
+  if (amt > (authStore.user?.credits || 0)) return notification.add('Insufficient funds', 'error')
+  if (bankDetails.value.accountNo !== bankDetails.value.confirmAccountNo) return notification.add('Account numbers do not match', 'error')
+  if (!bankDetails.value.ifsc || !bankDetails.value.name || !bankDetails.value.accountNo) return notification.add('Please fill all bank details', 'error')
+
+  withdrawLoading.value = true
+  try {
+    const res = await api.post('/api/wallet/withdraw', {
+      amount: amt,
+      method: 'bank',
+      details: {
+        accountNo: bankDetails.value.accountNo,
+        ifsc: bankDetails.value.ifsc,
+        name: bankDetails.value.name
+      }
+    })
+    const deduction = res.data?.totalDeduction || (amt * 1.01)
+    const fee = deduction - amt
+    notification.add(`Withdrawal Requested: ₹${amt}. Processing Fee: ₹${fee}. Total Deduction: ₹${deduction}.`, 'success')
+    showWithdraw.value = false
+    withdrawAmount.value = ''
+    bankDetails.value = { accountNo: '', confirmAccountNo: '', ifsc: '', name: '' }
+    authStore.init() // refresh balance
+    await fetchHistory()
+  } catch (e) {
+    notification.add(e.response?.data?.error || 'Withdrawal failed', 'error')
+  } finally {
+    withdrawLoading.value = false
+  }
 }
 
 const disputeReasons = [
@@ -234,9 +271,14 @@ onUnmounted(() => {
               <v-icon size="12" class="ml-1">mdi-content-copy</v-icon>
             </div>
 
-            <button class="btn-add-funds" @click="showTopup = true">
-              Add Funds +
-            </button>
+            <div class="wallet-actions">
+              <button class="btn-add-funds" @click="showTopup = true">
+                Add Funds +
+              </button>
+              <button class="btn-withdraw" @click="showWithdraw = true">
+                Withdraw ↑
+              </button>
+            </div>
           </div>
       </div>
     </div>
@@ -291,6 +333,15 @@ onUnmounted(() => {
                 {{ tx.amount >= 0 ? '+' : '' }}{{ fmt(tx.amount) }}
               </div>
               <div class="tx-bal">{{ fmt(tx.newBalance) }}</div>
+            </div>
+            <!-- Inline Dispute Action -->
+            <div v-if="authStore.role !== 'admin' && authStore.role !== 'employee'" class="tx-inline-actions" @click.stop>
+              <div v-if="tx.disputed" class="disputed-badge-inline" title="Dispute Active" @click="openSupportChat">
+                <span style="font-size:14px">⚠️</span>
+              </div>
+              <button v-else-if="tx.status !== 'pending' && tx.type !== 'WALLET_TOPUP'" class="btn-dispute-inline" @click.stop="openTxDetails(tx); raiseDispute()">
+                Dispute
+              </button>
             </div>
           </div>
         </TransitionGroup>
@@ -348,6 +399,66 @@ onUnmounted(() => {
                 @click="handleTopup">
                 <span v-if="topupLoading" class="dep-spin"></span>
                 Proceed to Payment
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- WITHDRAW FUNDS MODAL -->
+    <Teleport to="body">
+      <Transition name="modal">
+        <div v-if="showWithdraw" class="modal-overlay" @click.self="showWithdraw = false">
+          <div class="modal deposit-modal fade-up" style="max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-head">
+              <h3 class="modal-title">Withdraw to Bank</h3>
+              <button class="modal-close" @click="showWithdraw = false">✕</button>
+            </div>
+            <div class="modal-body" style="overflow-y: auto; flex: 1;">
+              <div class="field-wrap">
+                <label class="field-label">AMOUNT TO WITHDRAW (₹)</label>
+                <div class="amt-wrap">
+                  <span class="amt-prefix">₹</span>
+                  <input v-model.number="withdrawAmount" type="number" min="100" class="field amt-field" placeholder="100" />
+                </div>
+                <div style="font-size: 11px; color: var(--text-3); margin-top: 4px;">Available balance: {{ fmt(authStore.user?.credits) }}</div>
+              </div>
+
+              <div class="field-wrap" style="margin-top:16px">
+                <label class="field-label">ACCOUNT HOLDER NAME</label>
+                <input v-model="bankDetails.name" type="text" class="field" placeholder="e.g. John Doe" />
+              </div>
+              
+              <div class="field-wrap" style="margin-top:16px">
+                <label class="field-label">ACCOUNT NUMBER</label>
+                <input v-model="bankDetails.accountNo" type="password" class="field" placeholder="Enter Account Number" />
+              </div>
+
+              <div class="field-wrap" style="margin-top:16px">
+                <label class="field-label">CONFIRM ACCOUNT NUMBER</label>
+                <input v-model="bankDetails.confirmAccountNo" type="text" class="field" placeholder="Confirm Account Number" />
+                <div v-if="bankDetails.accountNo && bankDetails.confirmAccountNo && bankDetails.accountNo !== bankDetails.confirmAccountNo" style="font-size: 11px; color: var(--red); margin-top: 4px;">
+                  Account numbers do not match
+                </div>
+              </div>
+
+              <div class="field-wrap" style="margin-top:16px">
+                <label class="field-label">IFSC CODE</label>
+                <input v-model="bankDetails.ifsc" type="text" class="field" placeholder="e.g. SBIN0001234" />
+              </div>
+              
+              <div class="dispute-info-note" style="margin-top:16px">
+                <span>ℹ️</span> Withdrawals may take 1-3 business days to reflect in your chosen bank account. A 1% processing fee applies.
+              </div>
+            </div>
+            <div class="modal-foot">
+              <button class="btn btn-ghost" @click="showWithdraw = false">Cancel</button>
+              <button class="btn btn-primary btn-deposit-full" 
+                :disabled="withdrawLoading || !withdrawAmount || withdrawAmount < 100 || bankDetails.accountNo !== bankDetails.confirmAccountNo || !bankDetails.accountNo || !bankDetails.ifsc || !bankDetails.name" 
+                @click="handleWithdraw">
+                <span v-if="withdrawLoading" class="dep-spin"></span>
+                Submit Request
               </button>
             </div>
           </div>
@@ -476,6 +587,15 @@ onUnmounted(() => {
 }
 .btn-add-funds:hover { transform: translateY(-2px); scale: 1.05; box-shadow: 0 12px 24px rgba(212,175,55,0.4); }
 .btn-add-funds:active { transform: translateY(0); scale: 0.98; }
+
+.wallet-actions { display: flex; gap: 12px; justify-content: center; margin-top: 4px; }
+.btn-withdraw {
+  background: transparent; color: var(--gold); border: 1.5px solid var(--gold); border-radius: 14px;
+  padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.btn-withdraw:hover { background: rgba(212,175,55,0.1); transform: translateY(-2px); scale: 1.05; }
+.btn-withdraw:active { transform: translateY(0); scale: 0.98; }
 
 .wallet-id-tag {
   background: var(--bg-raised); border: 1px solid var(--border-md);
@@ -640,6 +760,17 @@ onUnmounted(() => {
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 999;
   display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.tx-inline-actions { margin-left: 14px; flex-shrink: 0; }
+.btn-dispute-inline {
+  padding: 6px 12px; background: var(--red-dim); border: 1px solid rgba(248,113,113,0.3);
+  border-radius: 8px; color: var(--red); font-family: var(--font-body); font-size: 11px; font-weight: 700;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.btn-dispute-inline:hover { background: rgba(248,113,113,0.2); }
+.disputed-badge-inline {
+  background: var(--orange-dim); border: 1px solid rgba(251,146,60,0.3);
+  border-radius: 8px; padding: 6px 10px; cursor: pointer; display: flex; align-items: center; justify-content: center;
 }
 .modal { background: var(--bg-card); border: 1px solid var(--border-md); width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border); }

@@ -1,7 +1,12 @@
-// FILE: backend/middleware/captchaMiddleware.js
-// Verifies Google reCAPTCHA v3 tokens server-side
+const { getSettings } = require("../services/settingsService")
 
 const verifyCaptcha = async (req, res, next) => {
+  const settings = await getSettings()
+  
+  if (settings.captchaEnabled === false) {
+    return next()
+  }
+
   const token = req.body.captchaToken || req.headers['x-captcha-token']
 
   // Skip verification if secret key not configured

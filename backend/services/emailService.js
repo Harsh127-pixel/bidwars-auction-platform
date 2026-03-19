@@ -197,6 +197,39 @@ class EmailService {
     return this._send(to, `🎉 Delivered: ${auctionTitle} [${orderId}]`, html);
   }
 
+  // ─── WALLET ALERTS ─────────────────────────────────────────────────────────
+  async sendWalletTopupAlert(to, { username, amount, newBalance, transactionId }) {
+    const html = this._htmlWrapper('Wallet Topup Successful', `
+      <h2>Funds Added to Wallet! 💰</h2>
+      <p>Hi <strong>${username || 'User'}</strong>,</p>
+      <p>Your wallet top-up was successful. The funds are now available in your BidWars wallet.</p>
+      <div class="detail-box">
+        <div class="detail-row"><span class="detail-label">Transaction ID</span><span class="detail-value">${transactionId}</span></div>
+        <div class="detail-row"><span class="detail-label">Amount Added</span><span class="detail-value amount" style="color:#22C55E">+₹${Number(amount).toLocaleString('en-IN')}</span></div>
+        <div class="detail-row"><span class="detail-label">New Balance</span><span class="detail-value">₹${Number(newBalance).toLocaleString('en-IN')}</span></div>
+      </div>
+      <p>Happy Bidding!</p>
+    `);
+    return this._send(to, `💰 Wallet Topup Successful: ₹${Number(amount).toLocaleString('en-IN')}`, html);
+  }
+
+  async sendWithdrawalAlert(to, { username, amount, method, details, totalDeduction }) {
+    const html = this._htmlWrapper('Withdrawal Request Received', `
+      <h2>Withdrawal Initiated 🏦</h2>
+      <p>Hi <strong>${username || 'User'}</strong>,</p>
+      <p>We have successfully received your withdrawal request. It will be processed within 1-3 business days.</p>
+      <div class="detail-box">
+        <div class="detail-row"><span class="detail-label">Withdrawal Amount</span><span class="detail-value amount">₹${Number(amount).toLocaleString('en-IN')}</span></div>
+        <div class="detail-row"><span class="detail-label">Processing Fee (1%)</span><span class="detail-value">₹${Number(totalDeduction - amount).toLocaleString('en-IN')}</span></div>
+        <div class="detail-row"><span class="detail-label">Total Deduction</span><span class="detail-value" style="color:#EF4444">-₹${Number(totalDeduction).toLocaleString('en-IN')}</span></div>
+        <div class="detail-row"><span class="detail-label">Method</span><span class="detail-value" style="text-transform:uppercase">${method}</span></div>
+        <div class="detail-row"><span class="detail-label">Destination Account</span><span class="detail-value">${details}</span></div>
+      </div>
+      <p>If you did not initiate this request, please contact support immediately.</p>
+    `);
+    return this._send(to, `🏦 Withdrawal Request: ₹${Number(amount).toLocaleString('en-IN')}`, html);
+  }
+
   // ─── GENERIC EMAIL ─────────────────────────────────────────────────────────
   async sendMail(options) {
     if (options.html) {

@@ -36,9 +36,24 @@ const verifyToken = async (req, res, next) => {
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email,
+      email_verified: decodedToken.email_verified,
       ...userData,
       role: isAdminEmail ? "admin" : (userData.role || "bidder")
     };
+
+    // 2. Platform Protections
+    const { getSettings } = require("../services/settingsService")
+    const settings = await getSettings()
+
+    // Mandatory Email Verification
+    if (settings.emailVerificationRequired && !req.user.email_verified && req.user.role !== 'admin') {
+      // We allow session-sync to update profiles even if not verified, 
+      // but other routes might be blocked if they use verifyToken.
+      // However, it's safer to only block "active" routes like bidding/proposing.
+      // For now, let's attach the requirement to the request and let routes decide, 
+      // or block here if it's not a 'allow-unverified' route.
+      req.emailVerificationRequired = true
+    }
 
     next();
   } catch (error) {

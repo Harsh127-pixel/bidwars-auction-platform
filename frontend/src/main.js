@@ -2,6 +2,7 @@
 import './assets/main.css'
 import '@mdi/font/css/materialdesignicons.css'
 import 'vuetify/styles'
+import './assets/responsive-fixes.css'  // add this last
 
 import { createVuetify } from 'vuetify'
 import * as components from 'vuetify/components'

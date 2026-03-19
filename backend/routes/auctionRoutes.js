@@ -158,6 +158,9 @@ router.post("/auctions", verifyToken, verifyAdmin, async (req, res) => {
 
 // User: join auction (add to participants)
 router.post("/auctions/:id/join", verifyToken, async (req, res) => {
+  if (req.emailVerificationRequired) {
+    return res.status(403).json({ error: "Email verification required to join auctions.", verificationRequired: true })
+  }
   try {
     const auctionRef = db.collection("auctions").doc(req.params.id)
     await auctionRef.update({
@@ -172,6 +175,9 @@ router.post("/auctions/:id/join", verifyToken, async (req, res) => {
 
 // User: Propose Auction
 router.post("/auctions/propose", verifyToken, async (req, res) => {
+  if (req.emailVerificationRequired) {
+    return res.status(403).json({ error: "Email verification required to propose listings.", verificationRequired: true })
+  }
   const { title, description, category, minBid, imageUrl, endTime } = req.body
   if (!req.user.isVerified) {
     return res.status(403).json({ message: "KYC Verification required to list assets." })
@@ -317,6 +323,9 @@ router.post("/admin/closeAuction", verifyToken, verifyAdmin, async (req, res) =>
 
 // Protected: Buy It Now
 router.post("/auctions/buy-it-now/:id", verifyToken, async (req, res) => {
+  if (req.emailVerificationRequired) {
+    return res.status(403).json({ error: "Email verification required for purchases.", verificationRequired: true })
+  }
   const auctionId = req.params.id
   const userId = req.user.uid
   try {

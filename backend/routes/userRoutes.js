@@ -27,10 +27,12 @@ router.post("/session-sync", verifyToken, async (req, res) => {
 
     // 1. Determine effective role (email-based admin check first, then employees collection)
     let role = getRoleForEmail(req.user.email)
+    let permissions = null
     if (role === 'bidder') {
       const empSnapshot = await db.collection("employees").where("email", "==", req.user.email).limit(1).get()
       if (!empSnapshot.empty) {
         role = 'employee'
+        permissions = empSnapshot.docs[0].data().permissions || {}
       }
     }
 
@@ -43,8 +45,14 @@ router.post("/session-sync", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Access Denied: Staff must use admin portal." })
     }
 
+    const settings = await require("../services/settingsService").getSettings()
+
     // 3. Create or update user profile
     if (!userDoc.exists) {
+      if (!settings.registrationEnabled) {
+        return res.status(403).json({ error: "Registration is currently disabled by administrator." })
+      }
+
       // Prevent duplicate accounts with same email under a different UID
       const emailSnapshot = await db.collection("users").where("email", "==", req.user.email).limit(1).get()
       if (!emailSnapshot.empty) {
@@ -68,6 +76,8 @@ router.post("/session-sync", verifyToken, async (req, res) => {
         updatedAt: now,
         lastActive: now
       }
+      if (permissions) profile.permissions = permissions
+      
       await userRef.set(profile)
       userDoc = await userRef.get()
     } else {
@@ -77,6 +87,8 @@ router.post("/session-sync", verifyToken, async (req, res) => {
         updatedAt: new Date(),
         lastActive: new Date()
       }
+      if (permissions) updates.permissions = permissions
+      
       if (username && !existing.username) updates.username = username
       if (phone && !existing.phone) updates.phone = phone
       await userRef.update(updates)

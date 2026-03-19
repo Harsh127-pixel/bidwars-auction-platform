@@ -317,8 +317,11 @@ onMounted(() => { fetchAuctions(); fetchWatchlist() })
 
 @media (max-width: 640px) {
   .hero-meta { display: none; }
-  .filter-bar { flex-direction: column; align-items: flex-start; }
-  .filter-controls { width: 100%; }
+  .list-hero__inner { justify-content: center; text-align: center; }
+  .hero-eyebrow { justify-content: center; }
+  .filter-bar { flex-direction: column; align-items: center; }
+  .cat-pills { justify-content: center; }
+  .filter-controls { width: 100%; justify-content: center; }
   .search-input { width: 100%; }
   .view-toggle { display: none; }
   .auction-list :deep(.auction-card) { flex-direction: column; }

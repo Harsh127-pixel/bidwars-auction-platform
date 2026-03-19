@@ -29,13 +29,15 @@ const handleLogin = async () => {
   loading.value = true
   captchaError.value = false
   try {
-    // Get captcha token (invisible — no user interaction needed)
-    const captchaToken = await getCaptchaToken('login')
-    if (!captchaToken) {
-      captchaError.value = true
-      notification.add('Security verification failed. Please try again.', 'error')
-      loading.value = false
-      return
+    // 1. Check if captcha is required
+    if (authStore.platformSettings.captchaEnabled) {
+      const captchaToken = await getCaptchaToken('login')
+      if (!captchaToken) {
+        captchaError.value = true
+        notification.add('Security verification failed. Please try again.', 'error')
+        loading.value = false
+        return
+      }
     }
 
     await authStore.login(email.value, password.value, rememberMe.value)
@@ -116,7 +118,7 @@ const handleLogin = async () => {
             Security check failed. Please refresh and try again.
           </div>
 
-          <div class="captcha-notice">
+          <div v-if="authStore.platformSettings.captchaEnabled" class="captcha-notice">
             Protected by reCAPTCHA.
             <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
             <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
@@ -218,7 +220,8 @@ const handleLogin = async () => {
 
 @media (max-width: 768px) {
   .brand-panel { display: none; }
-  .form-panel { padding: 40px 24px; }
+  .form-panel { padding: 40px 16px; align-items: flex-start; }
+  .form-head { text-align: center; }
 }
 
 .captcha-notice {

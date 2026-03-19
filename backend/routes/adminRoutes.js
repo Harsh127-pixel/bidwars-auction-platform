@@ -332,11 +332,18 @@ router.put("/fulfillment/:orderId/ship", verifyToken, verifyStaff, checkPermissi
   }
 })
 
-// System Settings (Razorpay Simulation Toggle)
+// System Settings (Platform Controls)
 router.get("/settings", verifyToken, verifyStaff, checkPermission("manage_settings"), async (req, res) => {
   try {
     const settingDoc = await db.collection("settings").doc("platform").get()
-    res.json(settingDoc.exists ? settingDoc.data() : { razorpaySimulation: true })
+    const defaultSettings = { 
+      razorpaySimulation: true,
+      captchaEnabled: true,
+      maintenanceMode: false,
+      registrationEnabled: true,
+      emailVerificationRequired: false
+    }
+    res.json(settingDoc.exists ? { ...defaultSettings, ...settingDoc.data() } : defaultSettings)
   } catch (error) {
     res.status(500).json({ error: error.message })
   }
@@ -344,8 +351,8 @@ router.get("/settings", verifyToken, verifyStaff, checkPermission("manage_settin
 
 router.put("/settings", verifyToken, verifyStaff, checkPermission("manage_settings"), async (req, res) => {
   try {
-    const { razorpaySimulation } = req.body
-    await db.collection("settings").doc("platform").set({ razorpaySimulation }, { merge: true })
+    const settings = req.body
+    await db.collection("settings").doc("platform").set(settings, { merge: true })
     res.json({ message: "Settings updated" })
   } catch (error) {
     res.status(500).json({ error: error.message })

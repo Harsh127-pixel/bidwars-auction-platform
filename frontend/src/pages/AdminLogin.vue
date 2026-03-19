@@ -192,5 +192,7 @@ const handleLogin = async () => {
 
 @media (max-width: 768px) {
   .brand-panel { display: none; }
+  .form-panel { padding: 40px 16px; align-items: flex-start; }
+  .form-head { text-align: center; }
 }
 </style>

@@ -585,8 +585,17 @@ onUnmounted(() => {
   .quick-grid { grid-template-columns: repeat(2, 1fr); }
   .bid-input-row { flex-direction: column; }
   .btn-bid, .btn-proxy { width: 100%; justify-content: center; }
-  .bin-card { flex-direction: column; align-items: flex-start; }
+  .bin-card { flex-direction: column; align-items: center; text-align: center; }
   .btn-bin { width: 100%; }
+  
+  /* Centering specifically for app-like mobile experience */
+  .breadcrumb__inner { justify-content: center; text-align: center; }
+  .bc-badges { margin: 8px auto 0; width: 100%; justify-content: center; }
+  .info-card { padding: 24px 16px; text-align: center; }
+  .info-meta { justify-content: center; }
+  .price-card { text-align: center; }
+  .price-card__timer { justify-content: center; gap: 16px; }
+  .join-gate { text-align: center; }
 }
 /* AI SENTIMENT CARD */
 .ai-sentiment-card {

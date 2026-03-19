@@ -60,6 +60,56 @@ app.use(cors({
 
 app.use(express.json())
 
+const { getSettings } = require("./services/settingsService")
+const { verifyToken, verifyAdmin } = require("./middleware/authMiddleware")
+
+// Maintenance Mode Middleware
+app.use(async (req, res, next) => {
+  if (req.path === '/api/health' || req.path.startsWith('/api/admin/settings')) {
+    return next()
+  }
+
+  const settings = await getSettings()
+  if (settings.maintenanceMode) {
+    // Check if user is an admin bypassing it
+    // We need to verify token manually here since global middleware runs before other verifyToken calls
+    const authHeader = req.headers.authorization
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const { admin } = require("./config/firebase")
+        const idToken = authHeader.split('Bearer ')[1]
+        const decodedToken = await admin.auth().verifyIdToken(idToken)
+        const userDoc = await db.collection("users").doc(decodedToken.uid).get()
+        if (userDoc.exists && userDoc.data().role === 'admin') {
+          return next()
+        }
+      } catch (err) {}
+    }
+    
+    return res.status(503).json({ 
+      error: 'Platform is currently under maintenance. Please try again later.',
+      maintenance: true 
+    })
+  }
+  next()
+})
+
+// Public Settings (Basic features like captcha status)
+app.get("/api/settings", async (req, res) => {
+  try {
+    const settings = await getSettings()
+    // Filter out sensitive settings if any (none currently)
+    res.json({
+      captchaEnabled: settings.captchaEnabled,
+      registrationEnabled: settings.registrationEnabled,
+      maintenanceMode: settings.maintenanceMode,
+      emailVerificationRequired: settings.emailVerificationRequired
+    })
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
 // Health check — use this to confirm the backend is reachable
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() })

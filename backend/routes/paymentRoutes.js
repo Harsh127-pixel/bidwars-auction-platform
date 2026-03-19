@@ -88,6 +88,13 @@ router.post("/verify", verifyToken, async (req, res) => {
         emailService.sendInvoice(req.user.email, `Wallet Topup`, amount, pdf)
       }).catch(err => console.error("Invoice generation error:", err))
 
+      emailService.sendWalletTopupAlert(req.user.email, {
+        username: userData.username,
+        amount: amount,
+        newBalance: newBalance,
+        transactionId: orderId
+      }).catch(err => console.error("Topup alert email error:", err))
+
       res.json({ message: "Payment verified and wallet updated", balance: newBalance })
     } else {
       res.status(400).json({ error: "Invalid payment signature" })

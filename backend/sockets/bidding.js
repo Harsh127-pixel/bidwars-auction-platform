@@ -4,6 +4,8 @@ const ledgerService = require('../services/ledger');
 const admin = require('firebase-admin');
 const notificationService = require('../services/notificationService');
 
+const { getSettings } = require('../services/settingsService');
+
 module.exports = (io, db) => {
   
   /**
@@ -15,6 +17,19 @@ module.exports = (io, db) => {
     const ip = socket.handshake.address;
 
     try {
+      const settings = await getSettings();
+      if (settings.maintenanceMode) throw new Error("Floor is closed for system maintenance.");
+
+      // Check user verification if mandatory
+      const userRef = db.collection("users").doc(userId);
+      const userDocCheck = await userRef.get();
+      if (!userDocCheck.exists) throw new Error("Bidder identity unknown.");
+      const userDataCheck = userDocCheck.data();
+
+      if (settings.emailVerificationRequired && !userDataCheck.email_verified && userDataCheck.role !== 'admin') {
+         throw new Error("Email verification is mandatory to submit bids.");
+      }
+
       let result = null;
 
       await db.runTransaction(async (transaction) => {

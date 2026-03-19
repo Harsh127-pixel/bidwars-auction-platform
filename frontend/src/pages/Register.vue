@@ -22,13 +22,15 @@ const handleRegister = async () => {
   loading.value = true
   captchaError.value = false
   try {
-    // Get captcha token (invisible — no user interaction needed)
-    const captchaToken = await getCaptchaToken('register')
-    if (!captchaToken) {
-      captchaError.value = true
-      notification.add('Security verification failed. Please try again.', 'error')
-      loading.value = false
-      return
+    // 1. Check if captcha is required
+    if (authStore.platformSettings.captchaEnabled) {
+      const captchaToken = await getCaptchaToken('register')
+      if (!captchaToken) {
+        captchaError.value = true
+        notification.add('Security verification failed. Please try again.', 'error')
+        loading.value = false
+        return
+      }
     }
 
     await authStore.register(email.value, password.value, username.value, phone.value)
@@ -88,7 +90,7 @@ const handleRegister = async () => {
           <p class="form-sub">Free forever. No credit card required.</p>
         </div>
 
-        <form @submit.prevent="handleRegister" class="form-body">
+        <form v-if="authStore.platformSettings.registrationEnabled" @submit.prevent="handleRegister" class="form-body">
           <div class="field-wrap">
             <label class="field-label">Display Name</label>
             <input v-model="username" type="text" placeholder="How others see you" required class="field" />
@@ -125,12 +127,18 @@ const handleRegister = async () => {
             Security check failed. Please refresh and try again.
           </div>
 
-          <div class="captcha-notice">
+          <div v-if="authStore.platformSettings.captchaEnabled" class="captcha-notice">
             Protected by reCAPTCHA.
             <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
             <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
           </div>
         </form>
+        <div v-else class="disabled-notice">
+          <div class="disabled-notice__icon">🚫</div>
+          <div class="disabled-notice__title">Registration Closed</div>
+          <p class="disabled-notice__text">Account creation is temporarily disabled by the administrator. Please try again later.</p>
+          <router-link to="/login" class="btn-submit" style="text-decoration:none;margin-top:20px">Back to Login</router-link>
+        </div>
 
         <p class="form-switch">
           Already have an account?
@@ -242,7 +250,8 @@ export default {
 
 @media (max-width: 768px) {
   .brand-panel { display: none; }
-  .form-panel { padding: 40px 24px; }
+  .form-panel { padding: 40px 16px; align-items: flex-start; }
+  .form-head { text-align: center; }
 }
 
 .captcha-notice {
@@ -252,4 +261,8 @@ export default {
 .captcha-notice a {
   color: var(--text-3, #888); text-decoration: underline;
 }
+.disabled-notice { text-align: center; padding: 40px 20px; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border); }
+.disabled-notice__icon { font-size: 48px; margin-bottom: 20px; }
+.disabled-notice__title { font-family: var(--font-display); font-size: 24px; font-weight: 600; color: var(--text); margin-bottom: 12px; }
+.disabled-notice__text { font-size: 14px; color: var(--text-2); line-height: 1.6; }
 </style>

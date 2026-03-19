@@ -78,7 +78,7 @@
 
 /* ── RESET ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; overflow-x: hidden; }
 
 body {
   font-family: var(--font-body);
@@ -88,6 +88,7 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s, color 0.2s;
+  overflow-x: hidden;
 }
 
 /* ── VUETIFY OVERRIDES ── */
@@ -95,7 +96,7 @@ body {
   background: var(--bg) !important;
   font-family: var(--font-body) !important;
 }
-.v-application__wrap { background: var(--bg) !important; }
+.v-application__wrap { background: var(--bg) !important; overflow-x: hidden; }
 .v-main { background: var(--bg) !important; }
 
 /* ── TYPOGRAPHY ── */
@@ -126,6 +127,13 @@ body {
   margin: 0 auto;
   padding: 0 24px;
 }
+
+@media (max-width: 768px) {
+  .page-wrap {
+    padding: 0 12px;
+  }
+}
+
 .page-content {
   min-height: 100vh;
   background: var(--bg);
